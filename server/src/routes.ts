@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { scanRepository } from "./scanner";
 import { buildKnowledge } from "./graph";
 import { reviewNode, createUserPrinciple, type ReviewAction } from "./approvals";
+import { generatePack } from "./pack";
 import * as store from "./store";
 import type { ScanResponse, NodeType, NodeWithEvidence } from "../../shared/types";
 
@@ -75,6 +76,55 @@ api.get("/projects/:id/nodes", (req, res) => {
   const project = store.getProject(req.params.id);
   if (!project) return res.status(404).json({ error: "Project not found." });
   res.json({ nodes: store.getNodesWithEvidence(project.id), edges: store.getEdges(project.id) });
+});
+
+api.post("/projects/:id/pack/generate", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  try {
+    const generated = generatePack(project);
+    const record = store.savePack(project.id, { generatedAt: generated.generatedAt, content: generated.content, sourceFingerprint: generated.sourceFingerprint, format: "agents-md" });
+    store.recordHistory({ id: randomUUID(), projectId: project.id, entityType: "pack", entityId: record.id, action: "generate", actor: "local-user", detail: JSON.stringify(generated.counts), at: generated.generatedAt });
+    res.status(201).json({ pack: { ...record, counts: generated.counts } });
+  } catch (err) {
+    res.status(500).json({ error: `Pack generation failed: ${(err as Error).message}` });
+  }
+});
+
+api.get("/projects/:id/pack", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const pack = store.getLatestPack(project.id);
+  if (!pack) return res.json({ pack: null });
+  res.json({ pack });
+});
+
+api.post("/projects/:id/pack/export", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const pack = store.getLatestPack(project.id);
+  if (!pack) return res.status(409).json({ error: "Generate a pack first." });
+  const body = req.body ?? {};
+  const overwrite = body.overwrite === true;
+  const requestedName = typeof body.filename === "string" && body.filename.trim().length > 0 ? body.filename.trim() : "AGENTS.md";
+  let safeName = path.basename(requestedName).replace(/[^A-Za-z0-9._-]/g, "");
+  if (safeName.length === 0) safeName = "AGENTS.md";
+  if (!safeName.endsWith(".md")) safeName = `${safeName}.md`;
+  const target = path.join(project.rootPath, safeName);
+  if (fsSync.existsSync(target) && !overwrite) {
+    return res.status(409).json({
+      error: `${safeName} already exists in the repository. Confirm overwrite explicitly, or export under a different name.`,
+      exists: true,
+      filename: safeName,
+    });
+  }
+  try {
+    fsSync.writeFileSync(target, pack.content, "utf8");
+    store.recordHistory({ id: randomUUID(), projectId: project.id, entityType: "pack", entityId: pack.id, action: "export", actor: "local-user", detail: JSON.stringify({ filename: safeName, overwrite }), at: new Date().toISOString() });
+    res.json({ ok: true, writtenTo: safeName, bytes: pack.content.length });
+  } catch (err) {
+    res.status(500).json({ error: `Export failed: ${(err as Error).message}` });
+  }
 });
 
 api.get("/projects/:id/graph/export", (req, res) => {

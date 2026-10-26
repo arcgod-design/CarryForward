@@ -48,7 +48,7 @@ Build mode: fast — recorded from the learner's standing directive ("just compl
   Learner check: Walk from an approved principle to a decision to its source evidence, and back, using both canvas and list.
   Commit: `feat: navigable evidence-linked knowledge graph`
 
-- [ ] **5. The instruction pack generates, previews, and never silently overwrites**
+- [x] **5. The instruction pack generates, previews, and never silently overwrites**
   Becomes usable: Instruction Pack view: deterministic AGENTS.md-style pack from approved content — purpose, principles, conventions, decisions+status, procedures, source pointers, uncertainty notes — with preview, copy, download, export with overwrite warning, and generation metadata.
   Why now: First agent-facing output; depends on approvals (slice 3) and graph structure (slice 4), and is safe to export before diff machinery exists.
   PRD ref: `prd.md > Instruction pack`

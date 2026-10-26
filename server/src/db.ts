@@ -96,6 +96,15 @@ const MIGRATIONS: string[] = [
      at TEXT NOT NULL
    );
    CREATE INDEX idx_history_project ON history(project_id);`,
+  `CREATE TABLE packs(
+     id TEXT PRIMARY KEY,
+     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+     generated_at TEXT NOT NULL,
+     content TEXT NOT NULL,
+     source_fingerprint TEXT NOT NULL,
+     format TEXT NOT NULL
+   );
+   CREATE INDEX idx_packs_project ON packs(project_id);`,
 ];
 
 function migrate(database: Database.Database): void {

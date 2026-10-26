@@ -373,3 +373,48 @@ export function deleteEdgeIfUser(projectId: string, edgeId: string): boolean {
     .run(edgeId, projectId);
   return result.changes > 0;
 }
+
+export interface PackRecord {
+  id: string;
+  projectId: string;
+  generatedAt: string;
+  content: string;
+  sourceFingerprint: string;
+  format: string;
+}
+
+export function savePack(projectId: string, pack: { generatedAt: string; content: string; sourceFingerprint: string; format: string }): PackRecord {
+  const db = getDb();
+  const record: PackRecord = {
+    id: randomUUID(),
+    projectId,
+    generatedAt: pack.generatedAt,
+    content: pack.content,
+    sourceFingerprint: pack.sourceFingerprint,
+    format: pack.format,
+  };
+  db.prepare("INSERT INTO packs (id, project_id, generated_at, content, source_fingerprint, format) VALUES (?, ?, ?, ?, ?, ?)").run(
+    record.id,
+    projectId,
+    record.generatedAt,
+    record.content,
+    record.sourceFingerprint,
+    record.format
+  );
+  return record;
+}
+
+export function getLatestPack(projectId: string): PackRecord | undefined {
+  const row = getDb()
+    .prepare("SELECT * FROM packs WHERE project_id = ? ORDER BY generated_at DESC LIMIT 1")
+    .get(projectId) as (PackRecord & { project_id: string; generated_at: string; source_fingerprint: string }) | undefined;
+  if (!row) return undefined;
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    generatedAt: row.generatedAt,
+    content: row.content,
+    sourceFingerprint: row.sourceFingerprint,
+    format: row.format,
+  };
+}

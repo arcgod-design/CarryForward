@@ -633,3 +633,9 @@ tr:hover td {
   gap: 8px;
   margin-top: 10px;
 }
+
+.pack-preview {
+  max-height: 60vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
