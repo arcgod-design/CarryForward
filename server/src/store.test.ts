@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { getDb, closeDb, dbPath } from "./db";
+import { getDb, closeDb, dbPath, migrationCount } from "./db";
 import * as store from "./store";
 import type { ScannedFile } from "../../shared/types";
 
@@ -70,9 +70,9 @@ describe("store persistence", () => {
   it("runs migrations idempotently", () => {
     const db = getDb();
     const version = db.pragma("user_version", { simple: true });
-    expect(version).toBe(1);
+    expect(version).toBe(migrationCount());
     closeDb();
     getDb();
-    expect(getDb().pragma("user_version", { simple: true })).toBe(1);
+    expect(getDb().pragma("user_version", { simple: true })).toBe(migrationCount());
   });
 });

@@ -18,7 +18,7 @@ Build mode: fast — recorded from the learner's standing directive ("just compl
   Learner check: `npm run demo`, open http://localhost:8787, type any local repo path, scan it, and see the file list + exclusions.
   Commit: `feat: open repository with safe bounded scan`
 
-- [ ] **2. Discovery shows evidence-backed candidates with source locations**
+- [x] **2. Discovery shows evidence-backed candidates with source locations**
   Becomes usable: After a scan, the Overview shows real counts and Principles lists discovered candidates (principles, decisions, conventions, components, procedures, dependencies, status claims) each with exact source path + line range + excerpt + classification.
   Why now: This is the product's raw material — nothing else (approvals, graph, pack, findings) exists without honest discovery evidence.
   PRD ref: `prd.md > Discovery and evidence`

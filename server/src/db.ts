@@ -45,6 +45,46 @@ const MIGRATIONS: string[] = [
      skip_reason TEXT,
      UNIQUE(project_id, relative_path)
    );`,
+  `CREATE TABLE nodes(
+     id TEXT PRIMARY KEY,
+     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+     type TEXT NOT NULL,
+     title TEXT NOT NULL,
+     content TEXT NOT NULL,
+     status TEXT NOT NULL,
+     origin TEXT NOT NULL,
+     approved_by TEXT,
+     approved_at TEXT,
+     supersedes TEXT,
+     user_touched INTEGER NOT NULL DEFAULT 0,
+     created_at TEXT NOT NULL,
+     updated_at TEXT NOT NULL
+   );
+   CREATE TABLE evidence(
+     id TEXT PRIMARY KEY,
+     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+     node_id TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+     source_path TEXT NOT NULL,
+     start_line INTEGER NOT NULL,
+     end_line INTEGER NOT NULL,
+     excerpt TEXT NOT NULL,
+     classification TEXT NOT NULL,
+     observed_at TEXT NOT NULL,
+     confidence TEXT NOT NULL
+   );
+   CREATE TABLE edges(
+     id TEXT PRIMARY KEY,
+     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+     source_node TEXT NOT NULL,
+     target_node TEXT NOT NULL,
+     relation TEXT NOT NULL,
+     status TEXT NOT NULL,
+     evidence_id TEXT,
+     origin TEXT NOT NULL
+   );
+   CREATE INDEX idx_nodes_project ON nodes(project_id);
+   CREATE INDEX idx_evidence_node ON evidence(node_id);
+   CREATE INDEX idx_edges_project ON edges(project_id);`,
 ];
 
 function migrate(database: Database.Database): void {
@@ -55,4 +95,8 @@ function migrate(database: Database.Database): void {
   if (version !== MIGRATIONS.length) {
     database.pragma(`user_version = ${MIGRATIONS.length}`);
   }
+}
+
+export function migrationCount(): number {
+  return MIGRATIONS.length;
 }

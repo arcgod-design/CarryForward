@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { getDb } from "./db";
-import type { Project, SourceFileRecord, ScannedFile } from "../../shared/types";
+import type { BuiltKnowledge } from "./graph";
+import type { Project, SourceFileRecord, ScannedFile, KnowledgeNode, KnowledgeEdge, Evidence, NodeType, NodeStatus, NodeWithEvidence } from "../../shared/types";
 
 interface ProjectRow {
   id: string;
@@ -108,4 +109,171 @@ export function getSourceFiles(projectId: string): SourceFileRecord[] {
     .prepare("SELECT * FROM source_files WHERE project_id = ? ORDER BY relative_path")
     .all(projectId) as SourceFileRow[];
   return rows.map(rowToFile);
+}
+
+interface NodeRow {
+  id: string;
+  project_id: string;
+  type: string;
+  title: string;
+  content: string;
+  status: string;
+  origin: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  supersedes: string | null;
+  user_touched: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface EvidenceRow {
+  id: string;
+  project_id: string;
+  node_id: string;
+  source_path: string;
+  start_line: number;
+  end_line: number;
+  excerpt: string;
+  classification: string;
+  observed_at: string;
+  confidence: string;
+}
+
+interface EdgeRow {
+  id: string;
+  project_id: string;
+  source_node: string;
+  target_node: string;
+  relation: string;
+  status: string;
+  evidence_id: string | null;
+  origin: string;
+}
+
+function rowToNode(row: NodeRow): KnowledgeNode {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    type: row.type as NodeType,
+    title: row.title,
+    content: row.content,
+    status: row.status as NodeStatus,
+    origin: row.origin as KnowledgeNode["origin"],
+    approvedBy: row.approved_by,
+    approvedAt: row.approved_at,
+    supersedes: row.supersedes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function rowToEvidence(row: EvidenceRow): Evidence {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    nodeId: row.node_id,
+    sourcePath: row.source_path,
+    startLine: row.start_line,
+    endLine: row.end_line,
+    excerpt: row.excerpt,
+    classification: row.classification as Evidence["classification"],
+    observedAt: row.observed_at,
+    confidence: row.confidence as Evidence["confidence"],
+  };
+}
+
+function rowToEdge(row: EdgeRow): KnowledgeEdge {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    sourceNodeId: row.source_node,
+    targetNodeId: row.target_node,
+    relation: row.relation as KnowledgeEdge["relation"],
+    status: row.status as KnowledgeEdge["status"],
+    evidenceId: row.evidence_id,
+    origin: row.origin as KnowledgeEdge["origin"],
+  };
+}
+
+export function replaceDiscoveredKnowledge(projectId: string, knowledge: BuiltKnowledge): void {
+  const db = getDb();
+  const insertNode = db.prepare(
+    "INSERT OR IGNORE INTO nodes (id, project_id, type, title, content, status, origin, approved_by, approved_at, supersedes, user_touched, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)"
+  );
+  const insertEvidence = db.prepare(
+    "INSERT OR IGNORE INTO evidence (id, project_id, node_id, source_path, start_line, end_line, excerpt, classification, observed_at, confidence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  );
+  const insertEdge = db.prepare(
+    "INSERT OR REPLACE INTO edges (id, project_id, source_node, target_node, relation, status, evidence_id, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  );
+  const tx = db.transaction(() => {
+    db.prepare(
+      "DELETE FROM edges WHERE project_id = ? AND origin = 'discovered'"
+    ).run(projectId);
+    db.prepare(
+      "DELETE FROM evidence WHERE node_id IN (SELECT id FROM nodes WHERE project_id = ? AND origin = 'discovered' AND user_touched = 0)"
+    ).run(projectId);
+    db.prepare(
+      "DELETE FROM nodes WHERE project_id = ? AND origin = 'discovered' AND user_touched = 0"
+    ).run(projectId);
+    for (const n of knowledge.nodes) {
+      insertNode.run(n.id, n.projectId, n.type, n.title, n.content, n.status, n.origin, n.approvedBy, n.approvedAt, n.supersedes, n.createdAt, n.updatedAt);
+    }
+    for (const e of knowledge.evidence) {
+      insertEvidence.run(e.id, e.projectId, e.nodeId, e.sourcePath, e.startLine, e.endLine, e.excerpt, e.classification, e.observedAt, e.confidence);
+    }
+    for (const e of knowledge.edges) {
+      insertEdge.run(e.id, e.projectId, e.sourceNodeId, e.targetNodeId, e.relation, e.status, e.evidenceId, e.origin);
+    }
+  });
+  tx();
+}
+
+export function getNodesWithEvidence(projectId: string): NodeWithEvidence[] {
+  const db = getDb();
+  const nodeRows = db
+    .prepare("SELECT * FROM nodes WHERE project_id = ? ORDER BY type, title")
+    .all(projectId) as NodeRow[];
+  const evidenceRows = db
+    .prepare("SELECT * FROM evidence WHERE project_id = ? ORDER BY source_path, start_line")
+    .all(projectId) as EvidenceRow[];
+  const evidenceByNode = new Map<string, Evidence[]>();
+  for (const row of evidenceRows) {
+    const list = evidenceByNode.get(row.node_id) ?? [];
+    list.push(rowToEvidence(row));
+    evidenceByNode.set(row.node_id, list);
+  }
+  return nodeRows.map((row) => ({
+    node: rowToNode(row),
+    evidence: evidenceByNode.get(row.id) ?? [],
+  }));
+}
+
+export function getEdges(projectId: string): KnowledgeEdge[] {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT * FROM edges WHERE project_id = ?")
+    .all(projectId) as EdgeRow[];
+  return rows.map(rowToEdge);
+}
+
+export function countOverview(projectId: string): {
+  totals: { nodes: number; evidence: number; edges: number };
+  byType: Partial<Record<NodeType, number>>;
+  byStatus: Partial<Record<NodeStatus, number>>;
+} {
+  const db = getDb();
+  const nodeCount = (db.prepare("SELECT COUNT(*) AS c FROM nodes WHERE project_id = ?").get(projectId) as { c: number }).c;
+  const evidenceCount = (db.prepare("SELECT COUNT(*) AS c FROM evidence WHERE project_id = ?").get(projectId) as { c: number }).c;
+  const edgeCount = (db.prepare("SELECT COUNT(*) AS c FROM edges WHERE project_id = ?").get(projectId) as { c: number }).c;
+  const byType: Partial<Record<NodeType, number>> = {};
+  for (const row of db.prepare("SELECT type, COUNT(*) AS c FROM nodes WHERE project_id = ? GROUP BY type").all(projectId) as { type: string; c: number }[]) {
+    byType[row.type as NodeType] = row.c;
+  }
+  const byStatus: Partial<Record<NodeStatus, number>> = {};
+  for (const row of db.prepare("SELECT status, COUNT(*) AS c FROM nodes WHERE project_id = ? GROUP BY status").all(projectId) as { status: string; c: number }[]) {
+    byStatus[row.status as NodeStatus] = row.c;
+  }
+  return { totals: { nodes: nodeCount, evidence: evidenceCount, edges: edgeCount }, byType, byStatus };
 }

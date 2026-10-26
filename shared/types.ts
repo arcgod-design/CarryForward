@@ -106,7 +106,25 @@ export interface ScanSummary {
   truncated: boolean;
 }
 
+export interface DiscoverySummary {
+  total: number;
+  byType: Partial<Record<NodeType, number>>;
+}
+
 export interface ScanResponse {
   summary: ScanSummary;
   files: SourceFileRecord[];
+  discovery?: DiscoverySummary;
+}
+
+export interface NodeWithEvidence {
+  node: KnowledgeNode;
+  evidence: Evidence[];
+}
+
+export interface OverviewResponse {
+  project: Project;
+  totals: { nodes: number; evidence: number; edges: number };
+  byType: Partial<Record<NodeType, number>>;
+  byStatus: Partial<Record<NodeStatus, number>>;
 }

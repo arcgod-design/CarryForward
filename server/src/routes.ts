@@ -2,8 +2,9 @@ import { Router } from "express";
 import fsSync from "fs";
 import path from "path";
 import { scanRepository } from "./scanner";
+import { buildKnowledge } from "./graph";
 import * as store from "./store";
-import type { ScanResponse } from "../../shared/types";
+import type { ScanResponse, NodeType } from "../../shared/types";
 
 export const api = Router();
 
@@ -38,6 +39,15 @@ api.post("/projects/:id/scan", async (req, res) => {
     const result = await scanRepository(project.rootPath);
     store.replaceSourceFiles(project.id, result.files, result.skipped);
     store.updateScanTime(project.id);
+
+    const knowledge = await buildKnowledge(project.id, project.rootPath, result.files.map((f) => ({ relativePath: f.relativePath, size: f.size })));
+    store.replaceDiscoveredKnowledge(project.id, knowledge);
+
+    const byType: Partial<Record<NodeType, number>> = {};
+    for (const n of knowledge.nodes) {
+      byType[n.type] = (byType[n.type] ?? 0) + 1;
+    }
+
     const files = store.getSourceFiles(project.id);
     const response: ScanResponse = {
       summary: {
@@ -47,11 +57,24 @@ api.post("/projects/:id/scan", async (req, res) => {
         truncated: result.truncated,
       },
       files,
+      discovery: { total: knowledge.nodes.length, byType },
     };
     res.json(response);
   } catch (err) {
     res.status(500).json({ error: `Scan failed: ${(err as Error).message}` });
   }
+});
+
+api.get("/projects/:id/nodes", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  res.json({ nodes: store.getNodesWithEvidence(project.id), edges: store.getEdges(project.id) });
+});
+
+api.get("/projects/:id/overview", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  res.json(store.countOverview(project.id));
 });
 
 api.get("/projects/:id", (req, res) => {
