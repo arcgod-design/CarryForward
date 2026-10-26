@@ -1,0 +1,23 @@
+﻿# Personal learning context stays out of commits by default
+/devpost/learner-profile.md
+
+# Local credential files
+.env
+.env.*
+!.env.example
+
+# Dependencies / build output
+node_modules/
+dist/
+web/dist/
+
+# Local app state and generated fixtures
+data/
+fixtures/
+
+# Logs
+*.log
+
+# Skills CLI duplicate install locations (canonical copy lives in .agents/skills)
+agent/
+.claude/
