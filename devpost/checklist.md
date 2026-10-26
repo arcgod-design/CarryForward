@@ -38,7 +38,7 @@ Build mode: fast — recorded from the learner's standing directive ("just compl
   Learner check: Approve a principle, restart the app, confirm it's still approved and visually distinct.
   Commit: `feat: user approvals with history and persistence`
 
-- [ ] **4. The graph is navigable from rule to evidence and back**
+- [x] **4. The graph is navigable from rule to evidence and back**
   Becomes usable: Graph view: cytoscape canvas + searchable list with type/status filters; select a node → detail panel with linked nodes, source paths/lines, status/confidence; click-through navigation between nodes.
   Why now: The graph is the product's namesake surface — it must be walkable before instruction generation and change checks build on its links.
   PRD ref: `prd.md > Knowledge graph`
@@ -120,3 +120,5 @@ Reflection: [pending]
 Activity mode: [pending]
 
 ## Revisions
+
+- Graph view gained a `graph.json` export (endpoint + button) — user pointed at Graphify/CodeGraph reference repos; adopted their graph-as-data pattern as the cheapest agent-consumable artifact. Everything else they offer (AST parsing, communities, MCP, Rust kernel) recorded as ROADMAP; it violates the PoC boundary and the master prompt's small-graph rule.

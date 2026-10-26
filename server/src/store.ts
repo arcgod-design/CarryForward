@@ -359,3 +359,17 @@ export function getNodeHistory(projectId: string, nodeId: string): HistoryRecord
     at: r.at,
   }));
 }
+
+export function createUserEdge(projectId: string, edge: KnowledgeEdge): void {
+  getDb()
+    .prepare("INSERT OR REPLACE INTO edges (id, project_id, source_node, target_node, relation, status, evidence_id, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(edge.id, projectId, edge.sourceNodeId, edge.targetNodeId, edge.relation, edge.status, edge.evidenceId, edge.origin);
+}
+
+export function deleteEdgeIfUser(projectId: string, edgeId: string): boolean {
+  const db = getDb();
+  const result = db
+    .prepare("DELETE FROM edges WHERE id = ? AND project_id = ? AND origin = 'user'")
+    .run(edgeId, projectId);
+  return result.changes > 0;
+}

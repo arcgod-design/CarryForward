@@ -1,6 +1,7 @@
 import { Router } from "express";
 import fsSync from "fs";
 import path from "path";
+import { randomUUID } from "crypto";
 import { scanRepository } from "./scanner";
 import { buildKnowledge } from "./graph";
 import { reviewNode, createUserPrinciple, type ReviewAction } from "./approvals";
@@ -9,6 +10,7 @@ import type { ScanResponse, NodeType, NodeWithEvidence } from "../../shared/type
 
 const REVIEW_ACTIONS: ReviewAction[] = ["approve", "reject", "uncertain", "deprecate"];
 const NODE_TYPES: NodeType[] = ["principle", "decision", "component", "convention", "procedure", "dependency", "verification", "status-question"];
+const EDGE_RELATIONS = ["governs", "implemented_by", "depends_on", "verified_by", "supersedes", "contradicts", "related_to"] as const;
 
 export const api = Router();
 
@@ -75,6 +77,22 @@ api.get("/projects/:id/nodes", (req, res) => {
   res.json({ nodes: store.getNodesWithEvidence(project.id), edges: store.getEdges(project.id) });
 });
 
+api.get("/projects/:id/graph/export", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const nodes = store.getNodesWithEvidence(project.id);
+  const payload = {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    project: { displayName: project.displayName, rootPath: project.rootPath },
+    nodes: nodes.map((n) => n.node),
+    edges: store.getEdges(project.id),
+    evidence: nodes.flatMap((n) => n.evidence),
+  };
+  res.setHeader("Content-Disposition", `attachment; filename="carryforward-graph-${project.displayName}.json"`);
+  res.json(payload);
+});
+
 api.get("/projects/:id/overview", (req, res) => {
   const project = store.getProject(req.params.id);
   if (!project) return res.status(404).json({ error: "Project not found." });
@@ -123,6 +141,44 @@ api.get("/projects/:id/nodes/:nodeId", (req, res) => {
     evidence: store.getNodeEvidence(node.id),
   };
   res.json({ ...withEvidence, history: store.getNodeHistory(project.id, node.id) });
+});
+
+api.post("/projects/:id/edges", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const body = req.body ?? {};
+  const { sourceNodeId, targetNodeId, relation } = body;
+  if (typeof sourceNodeId !== "string" || typeof targetNodeId !== "string" || !EDGE_RELATIONS.includes(relation)) {
+    return res.status(400).json({ error: `sourceNodeId, targetNodeId and a relation (${EDGE_RELATIONS.join(", ")}) are required.` });
+  }
+  const source = store.getNodeById(sourceNodeId);
+  const target = store.getNodeById(targetNodeId);
+  if (!source || source.projectId !== project.id || !target || target.projectId !== project.id) {
+    return res.status(404).json({ error: "Both nodes must exist in this project." });
+  }
+  if (sourceNodeId === targetNodeId) return res.status(400).json({ error: "Cannot link a node to itself." });
+  const edge = {
+    id: randomUUID(),
+    projectId: project.id,
+    sourceNodeId,
+    targetNodeId,
+    relation,
+    status: "confirmed" as const,
+    evidenceId: null,
+    origin: "user" as const,
+  };
+  store.createUserEdge(project.id, edge);
+  res.status(201).json({ edge });
+});
+
+api.delete("/projects/:id/edges/:edgeId", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const removed = store.deleteEdgeIfUser(project.id, req.params.edgeId);
+  if (!removed) {
+    return res.status(404).json({ error: "Link not found, or it is evidence-backed (only user links can be removed here)." });
+  }
+  res.json({ ok: true });
 });
 
 api.get("/projects/:id", (req, res) => {
