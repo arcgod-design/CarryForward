@@ -3,8 +3,12 @@ import fsSync from "fs";
 import path from "path";
 import { scanRepository } from "./scanner";
 import { buildKnowledge } from "./graph";
+import { reviewNode, createUserPrinciple, type ReviewAction } from "./approvals";
 import * as store from "./store";
-import type { ScanResponse, NodeType } from "../../shared/types";
+import type { ScanResponse, NodeType, NodeWithEvidence } from "../../shared/types";
+
+const REVIEW_ACTIONS: ReviewAction[] = ["approve", "reject", "uncertain", "deprecate"];
+const NODE_TYPES: NodeType[] = ["principle", "decision", "component", "convention", "procedure", "dependency", "verification", "status-question"];
 
 export const api = Router();
 
@@ -75,6 +79,50 @@ api.get("/projects/:id/overview", (req, res) => {
   const project = store.getProject(req.params.id);
   if (!project) return res.status(404).json({ error: "Project not found." });
   res.json(store.countOverview(project.id));
+});
+
+api.post("/projects/:id/nodes", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const body = req.body ?? {};
+  const title = typeof body.title === "string" ? body.title : "";
+  const content = typeof body.content === "string" ? body.content : "";
+  const type: NodeType = NODE_TYPES.includes(body.type) ? body.type : "principle";
+  const result = createUserPrinciple(project.id, { title, content, type });
+  if ("error" in result) return res.status(400).json({ error: result.error });
+  res.status(201).json(result);
+});
+
+api.post("/projects/:id/nodes/:nodeId/review", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const body = req.body ?? {};
+  const action = body.action;
+  if (!REVIEW_ACTIONS.includes(action)) {
+    return res.status(400).json({ error: `action must be one of: ${REVIEW_ACTIONS.join(", ")}` });
+  }
+  const edits =
+    typeof body.title === "string" || typeof body.content === "string"
+      ? {
+          title: typeof body.title === "string" ? body.title : undefined,
+          content: typeof body.content === "string" ? body.content : undefined,
+        }
+      : undefined;
+  const result = reviewNode(project.id, req.params.nodeId, action, edits);
+  if ("error" in result) return res.status(404).json({ error: result.error });
+  res.json(result);
+});
+
+api.get("/projects/:id/nodes/:nodeId", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const node = store.getNodeById(req.params.nodeId);
+  if (!node || node.projectId !== project.id) return res.status(404).json({ error: "Node not found." });
+  const withEvidence: NodeWithEvidence = {
+    node,
+    evidence: store.getNodeEvidence(node.id),
+  };
+  res.json({ ...withEvidence, history: store.getNodeHistory(project.id, node.id) });
 });
 
 api.get("/projects/:id", (req, res) => {

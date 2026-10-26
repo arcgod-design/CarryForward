@@ -28,7 +28,7 @@ Build mode: fast — recorded from the learner's standing directive ("just compl
   Learner check: Scan the demo fixture, open Principles, click a candidate, and confirm the excerpt matches the real file at those lines.
   Commit: `feat: deterministic discovery with source evidence`
 
-- [ ] **3. Approvals are user actions that persist and never mix with machine candidates**
+- [x] **3. Approvals are user actions that persist and never mix with machine candidates**
   Becomes usable: Approve / edit+approve / reject / mark uncertain on candidates; approved rules are visually and structurally distinct; everything survives a server restart; history records the action.
   Why now: The kernel's authority boundary — user-approved vs machine-inferred — must be real in the data model before graph, pack, or checks consume it.
   PRD ref: `prd.md > Principles and decisions review`, `prd.md > States and Boundaries` (persistence)

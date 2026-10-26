@@ -277,3 +277,85 @@ export function countOverview(projectId: string): {
   }
   return { totals: { nodes: nodeCount, evidence: evidenceCount, edges: edgeCount }, byType, byStatus };
 }
+
+export interface HistoryRecord {
+  id: string;
+  projectId: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  actor: string;
+  detail: string;
+  at: string;
+}
+
+export function getNodeById(nodeId: string): KnowledgeNode | undefined {
+  const row = getDb().prepare("SELECT * FROM nodes WHERE id = ?").get(nodeId) as NodeRow | undefined;
+  return row ? rowToNode(row) : undefined;
+}
+
+export function getNodeEvidence(nodeId: string): Evidence[] {
+  const rows = getDb()
+    .prepare("SELECT * FROM evidence WHERE node_id = ? ORDER BY source_path, start_line")
+    .all(nodeId) as EvidenceRow[];
+  return rows.map(rowToEvidence);
+}
+
+export function updateUserNode(
+  nodeId: string,
+  fields: { status?: NodeStatus; title?: string; content?: string; approvedBy?: string | null; approvedAt?: string | null }
+): void {
+  const db = getDb();
+  const sets: string[] = ["user_touched = 1", "updated_at = ?"];
+  const values: unknown[] = [new Date().toISOString()];
+  if (fields.status !== undefined) {
+    sets.push("status = ?");
+    values.push(fields.status);
+  }
+  if (fields.title !== undefined) {
+    sets.push("title = ?");
+    values.push(fields.title);
+  }
+  if (fields.content !== undefined) {
+    sets.push("content = ?");
+    values.push(fields.content);
+  }
+  if (fields.approvedBy !== undefined) {
+    sets.push("approved_by = ?");
+    values.push(fields.approvedBy);
+  }
+  if (fields.approvedAt !== undefined) {
+    sets.push("approved_at = ?");
+    values.push(fields.approvedAt);
+  }
+  db.prepare(`UPDATE nodes SET ${sets.join(", ")} WHERE id = ?`).run(...values, nodeId);
+}
+
+export function createUserNode(projectId: string, node: KnowledgeNode): void {
+  const db = getDb();
+  db.prepare(
+    "INSERT INTO nodes (id, project_id, type, title, content, status, origin, approved_by, approved_at, supersedes, user_touched, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)"
+  ).run(node.id, node.projectId, node.type, node.title, node.content, node.status, node.origin, node.approvedBy, node.approvedAt, node.supersedes, node.createdAt, node.updatedAt);
+}
+
+export function recordHistory(entry: HistoryRecord): void {
+  getDb()
+    .prepare("INSERT INTO history (id, project_id, entity_type, entity_id, action, actor, detail, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(entry.id, entry.projectId, entry.entityType, entry.entityId, entry.action, entry.actor, entry.detail, entry.at);
+}
+
+export function getNodeHistory(projectId: string, nodeId: string): HistoryRecord[] {
+  const rows = getDb()
+    .prepare("SELECT * FROM history WHERE project_id = ? AND entity_type = 'node' AND entity_id = ? ORDER BY at")
+    .all(projectId, nodeId) as (HistoryRecord & { project_id: string })[];
+  return rows.map((r) => ({
+    id: r.id,
+    projectId: r.projectId,
+    entityType: r.entityType,
+    entityId: r.entityId,
+    action: r.action,
+    actor: r.actor,
+    detail: r.detail,
+    at: r.at,
+  }));
+}

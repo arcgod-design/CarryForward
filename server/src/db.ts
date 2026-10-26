@@ -85,6 +85,17 @@ const MIGRATIONS: string[] = [
    CREATE INDEX idx_nodes_project ON nodes(project_id);
    CREATE INDEX idx_evidence_node ON evidence(node_id);
    CREATE INDEX idx_edges_project ON edges(project_id);`,
+  `CREATE TABLE history(
+     id TEXT PRIMARY KEY,
+     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+     entity_type TEXT NOT NULL,
+     entity_id TEXT NOT NULL,
+     action TEXT NOT NULL,
+     actor TEXT NOT NULL,
+     detail TEXT NOT NULL,
+     at TEXT NOT NULL
+   );
+   CREATE INDEX idx_history_project ON history(project_id);`,
 ];
 
 function migrate(database: Database.Database): void {
