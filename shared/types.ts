@@ -128,3 +128,80 @@ export interface OverviewResponse {
   byType: Partial<Record<NodeType, number>>;
   byStatus: Partial<Record<NodeStatus, number>>;
 }
+
+export type DiffSource = "unstaged" | "staged" | "both" | "pasted";
+
+export interface DiffChange {
+  type: "add" | "del" | "normal";
+  lineNumber: number | null;
+  content: string;
+  redacted: boolean;
+}
+
+export interface DiffHunk {
+  oldStart: number;
+  newStart: number;
+  changes: DiffChange[];
+}
+
+export interface DiffFile {
+  path: string;
+  oldPath: string;
+  hunks: DiffHunk[];
+}
+
+export type FindingKind =
+  | "prohibited-pattern"
+  | "missing-verification"
+  | "status-evidence-changed";
+
+export type FindingCertainty =
+  | "deterministic"
+  | "strong-evidence"
+  | "possible-concern"
+  | "needs-human-review";
+
+export type FindingDisposition = "open" | "accepted" | "fixed" | "dismissed";
+
+export interface Finding {
+  id: string;
+  reviewRunId: string;
+  ruleNodeId: string | null;
+  ruleTitle: string | null;
+  changedPath: string;
+  changedLines: [number, number] | null;
+  kind: FindingKind;
+  severity: "info" | "low" | "medium" | "high";
+  certainty: FindingCertainty;
+  explanation: string;
+  ruleEvidence: string | null;
+  changedEvidence: string;
+  recommendation: string;
+  blocking: boolean;
+  disposition: FindingDisposition;
+}
+
+export interface ReviewRun {
+  id: string;
+  projectId: string;
+  diffSource: DiffSource;
+  createdAt: string;
+  filesReviewed: string[];
+  checksRun: string[];
+  summary: string;
+  redactions: string[];
+}
+
+export interface ApplicableRule {
+  ruleNodeId: string;
+  title: string;
+  appliesTo: string;
+  evidencePointer: string;
+}
+
+export interface CheckResponse {
+  run: ReviewRun;
+  findings: Finding[];
+  files: DiffFile[];
+  applicableRules: ApplicableRule[];
+}

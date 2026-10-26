@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { getDb } from "./db";
 import type { BuiltKnowledge } from "./graph";
-import type { Project, SourceFileRecord, ScannedFile, KnowledgeNode, KnowledgeEdge, Evidence, NodeType, NodeStatus, NodeWithEvidence } from "../../shared/types";
+import type { Project, SourceFileRecord, ScannedFile, KnowledgeNode, KnowledgeEdge, Evidence, NodeType, NodeStatus, NodeWithEvidence, Finding, ReviewRun } from "../../shared/types";
 
 interface ProjectRow {
   id: string;
@@ -417,4 +417,119 @@ export function getLatestPack(projectId: string): PackRecord | undefined {
     sourceFingerprint: row.sourceFingerprint,
     format: row.format,
   };
+}
+
+interface RunRow {
+  id: string;
+  project_id: string;
+  diff_source: string;
+  created_at: string;
+  files_reviewed: string;
+  checks_run: string;
+  summary: string;
+  redactions: string;
+}
+
+interface FindingRow {
+  id: string;
+  review_run_id: string;
+  project_id: string;
+  rule_node_id: string | null;
+  rule_title: string | null;
+  changed_path: string;
+  changed_lines: string | null;
+  kind: string;
+  severity: string;
+  certainty: string;
+  explanation: string;
+  rule_evidence: string | null;
+  changed_evidence: string;
+  recommendation: string;
+  blocking: number;
+  disposition: string;
+}
+
+function rowToFinding(row: FindingRow): Finding {
+  const lines = row.changed_lines ? (JSON.parse(row.changed_lines) as [number, number]) : null;
+  return {
+    id: row.id,
+    reviewRunId: row.review_run_id,
+    ruleNodeId: row.rule_node_id,
+    ruleTitle: row.rule_title,
+    changedPath: row.changed_path,
+    changedLines: lines,
+    kind: row.kind as Finding["kind"],
+    severity: row.severity as Finding["severity"],
+    certainty: row.certainty as Finding["certainty"],
+    explanation: row.explanation,
+    ruleEvidence: row.rule_evidence,
+    changedEvidence: row.changed_evidence,
+    recommendation: row.recommendation,
+    blocking: row.blocking === 1,
+    disposition: row.disposition as Finding["disposition"],
+  };
+}
+
+export function saveReviewRun(projectId: string, run: ReviewRun, findings: Finding[]): void {
+  const db = getDb();
+  const tx = db.transaction(() => {
+    db.prepare(
+      "INSERT INTO review_runs (id, project_id, diff_source, created_at, files_reviewed, checks_run, summary, redactions) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    ).run(run.id, projectId, run.diffSource, run.createdAt, JSON.stringify(run.filesReviewed), JSON.stringify(run.checksRun), run.summary, JSON.stringify(run.redactions));
+    const insertFinding = db.prepare(
+      "INSERT INTO findings (id, review_run_id, project_id, rule_node_id, rule_title, changed_path, changed_lines, kind, severity, certainty, explanation, rule_evidence, changed_evidence, recommendation, blocking, disposition) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+    for (const f of findings) {
+      insertFinding.run(
+        f.id,
+        run.id,
+        projectId,
+        f.ruleNodeId,
+        f.ruleTitle,
+        f.changedPath,
+        f.changedLines ? JSON.stringify(f.changedLines) : null,
+        f.kind,
+        f.severity,
+        f.certainty,
+        f.explanation,
+        f.ruleEvidence,
+        f.changedEvidence,
+        f.recommendation,
+        f.blocking ? 1 : 0,
+        f.disposition
+      );
+    }
+  });
+  tx();
+}
+
+export function getLatestReviewRun(projectId: string): { run: ReviewRun; findings: Finding[] } | undefined {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT * FROM review_runs WHERE project_id = ? ORDER BY created_at DESC LIMIT 1")
+    .get(projectId) as RunRow | undefined;
+  if (!row) return undefined;
+  const findingRows = db
+    .prepare("SELECT * FROM findings WHERE review_run_id = ?")
+    .all(row.id) as FindingRow[];
+  return {
+    run: {
+      id: row.id,
+      projectId: row.project_id,
+      diffSource: row.diff_source as ReviewRun["diffSource"],
+      createdAt: row.created_at,
+      filesReviewed: JSON.parse(row.files_reviewed),
+      checksRun: JSON.parse(row.checks_run),
+      summary: row.summary,
+      redactions: JSON.parse(row.redactions),
+    },
+    findings: findingRows.map(rowToFinding),
+  };
+}
+
+export function updateFindingDisposition(projectId: string, findingId: string, disposition: string): boolean {
+  const result = getDb()
+    .prepare("UPDATE findings SET disposition = ? WHERE id = ? AND project_id = ?")
+    .run(disposition, findingId, projectId);
+  return result.changes > 0;
 }

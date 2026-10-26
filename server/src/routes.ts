@@ -6,12 +6,15 @@ import { scanRepository } from "./scanner";
 import { buildKnowledge } from "./graph";
 import { reviewNode, createUserPrinciple, type ReviewAction } from "./approvals";
 import { generatePack } from "./pack";
+import { captureGitDiff, parseDiffText } from "./diff";
+import { runChecks } from "./checker";
 import * as store from "./store";
-import type { ScanResponse, NodeType, NodeWithEvidence } from "../../shared/types";
+import type { CheckResponse, DiffSource, ScanResponse, NodeType, NodeWithEvidence, ReviewRun, Finding } from "../../shared/types";
 
 const REVIEW_ACTIONS: ReviewAction[] = ["approve", "reject", "uncertain", "deprecate"];
 const NODE_TYPES: NodeType[] = ["principle", "decision", "component", "convention", "procedure", "dependency", "verification", "status-question"];
 const EDGE_RELATIONS = ["governs", "implemented_by", "depends_on", "verified_by", "supersedes", "contradicts", "related_to"] as const;
+const DIFF_SOURCES: DiffSource[] = ["unstaged", "staged", "both", "pasted"];
 
 export const api = Router();
 
@@ -125,6 +128,90 @@ api.post("/projects/:id/pack/export", (req, res) => {
   } catch (err) {
     res.status(500).json({ error: `Export failed: ${(err as Error).message}` });
   }
+});
+
+api.post("/projects/:id/check", async (req, res) => {
+  try {
+    const project = store.getProject(req.params.id);
+    if (!project) return res.status(404).json({ error: "Project not found." });
+    const body = req.body ?? {};
+    const source: DiffSource = DIFF_SOURCES.includes(body.source) ? body.source : "unstaged";
+
+    let diffText = "";
+    if (source === "pasted") {
+      diffText = typeof body.pasted === "string" ? body.pasted : "";
+      if (diffText.trim().length === 0) return res.status(400).json({ error: "Paste a unified diff to check." });
+    } else {
+      try {
+        diffText = await captureGitDiff(project.rootPath, source);
+      } catch (err) {
+        const e = err as NodeJS.ErrnoException;
+        const reason =
+          e.code === "ENOENT"
+            ? "git is not installed or not on PATH."
+            : /not a git repository/i.test(String(e.message))
+              ? "the opened folder is not a git repository."
+              : `git diff failed (${e.message || e.code || "unknown error"}).`;
+        return res.status(400).json({ error: `Could not read the diff: ${reason} You can paste a diff instead.` });
+      }
+    }
+
+    const { files, redactions } = parseDiffText(diffText);
+    const check = runChecks(project, files);
+    const run: ReviewRun = {
+      id: randomUUID(),
+      projectId: project.id,
+      diffSource: source,
+      createdAt: new Date().toISOString(),
+      filesReviewed: files.map((f) => f.path),
+      checksRun: check.checksRun,
+      redactions,
+      summary:
+        files.length === 0
+          ? "No changes found in the selected diff source."
+          : `${check.findings.length} finding${check.findings.length === 1 ? "" : "s"} across ${files.length} changed file${files.length === 1 ? "" : "s"}.`,
+    };
+    store.saveReviewRun(project.id, run, check.findings);
+    store.recordHistory({
+      id: randomUUID(),
+      projectId: project.id,
+      entityType: "review_run",
+      entityId: run.id,
+      action: "check",
+      actor: "local-user",
+      detail: JSON.stringify({ source, findings: check.findings.length }),
+      at: run.createdAt,
+    });
+    const response: CheckResponse = {
+      run,
+      findings: check.findings,
+      files,
+      applicableRules: check.applicableRules,
+    };
+    res.json(response);
+  } catch (err) {
+    console.error("check route failed:", err);
+    res.status(500).json({ error: `Change check failed: ${(err as Error).message}` });
+  }
+});
+
+api.get("/projects/:id/check", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const latest = store.getLatestReviewRun(project.id);
+  res.json(latest ?? { run: null, findings: [] });
+});
+
+api.post("/projects/:id/findings/:findingId/disposition", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const disposition = req.body?.disposition;
+  if (!["accepted", "fixed", "dismissed"].includes(disposition)) {
+    return res.status(400).json({ error: "disposition must be accepted, fixed, or dismissed." });
+  }
+  const ok = store.updateFindingDisposition(project.id, req.params.findingId, disposition);
+  if (!ok) return res.status(404).json({ error: "Finding not found." });
+  res.json({ ok: true });
 });
 
 api.get("/projects/:id/graph/export", (req, res) => {

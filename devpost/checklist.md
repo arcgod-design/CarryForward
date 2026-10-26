@@ -58,7 +58,7 @@ Build mode: fast — recorded from the learner's standing directive ("just compl
   Learner check: Generate the pack on the fixture, copy it, and export it — confirm the existing AGENTS.md warning appears.
   Commit: `feat: deterministic instruction pack with safe export`
 
-- [ ] **6. Change check turns a real diff into evidence-backed findings**
+- [x] **6. Change check turns a real diff into evidence-backed findings**
   Becomes usable: Change Check view: capture the opened repo's git diff (staged/unstaged) or paste one; see changed files/hunks with secret redaction; applicable rules matched; findings with severity, certainty label, both-side evidence, recommendation, blocking flag; scoped no-findings banner.
   Why now: The demo's money shot — and the last kernel capability. Depends on approvals + graph links existing.
   PRD ref: `prd.md > Change check`, `prd.md > Findings`

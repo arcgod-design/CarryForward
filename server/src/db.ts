@@ -105,6 +105,36 @@ const MIGRATIONS: string[] = [
      format TEXT NOT NULL
    );
    CREATE INDEX idx_packs_project ON packs(project_id);`,
+  `CREATE TABLE review_runs(
+     id TEXT PRIMARY KEY,
+     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+     diff_source TEXT NOT NULL,
+     created_at TEXT NOT NULL,
+     files_reviewed TEXT NOT NULL,
+     checks_run TEXT NOT NULL,
+     summary TEXT NOT NULL,
+     redactions TEXT NOT NULL DEFAULT '[]'
+   );
+   CREATE TABLE findings(
+     id TEXT PRIMARY KEY,
+     review_run_id TEXT NOT NULL REFERENCES review_runs(id) ON DELETE CASCADE,
+     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+     rule_node_id TEXT,
+     rule_title TEXT,
+     changed_path TEXT NOT NULL,
+     changed_lines TEXT,
+     kind TEXT NOT NULL,
+     severity TEXT NOT NULL,
+     certainty TEXT NOT NULL,
+     explanation TEXT NOT NULL,
+     rule_evidence TEXT,
+     changed_evidence TEXT NOT NULL,
+     recommendation TEXT NOT NULL,
+     blocking INTEGER NOT NULL DEFAULT 0,
+     disposition TEXT NOT NULL DEFAULT 'open'
+   );
+   CREATE INDEX idx_runs_project ON review_runs(project_id);
+   CREATE INDEX idx_findings_run ON findings(review_run_id);`,
 ];
 
 function migrate(database: Database.Database): void {

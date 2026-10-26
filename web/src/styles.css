@@ -639,3 +639,77 @@ tr:hover td {
   overflow-y: auto;
   white-space: pre-wrap;
 }
+
+.finding-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.finding-card.severity-high {
+  border-left-color: var(--bad);
+}
+
+.finding-card.severity-medium {
+  border-left-color: var(--warn);
+}
+
+.finding-card.severity-low,
+.finding-card.severity-info {
+  border-left-color: var(--info);
+}
+
+.finding-card h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  margin: 12px 0 4px;
+}
+
+.finding-card p {
+  margin: 6px 0;
+}
+
+.severity-badge-high {
+  color: var(--bad);
+  border-color: #6e2b28;
+}
+
+.severity-badge-medium {
+  color: var(--warn);
+  border-color: #6e531e;
+}
+
+.severity-badge-low,
+.severity-badge-info {
+  color: var(--info);
+  border-color: #1f4a6e;
+}
+
+.diff-hunk {
+  display: block;
+  line-height: 1.5;
+}
+
+.diff-line {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-line.diff-add {
+  color: #7ee787;
+  background: rgba(63, 185, 80, 0.08);
+}
+
+.diff-line.diff-del {
+  color: #ff9d97;
+  background: rgba(248, 81, 73, 0.08);
+}
+
+.diff-line.diff-normal {
+  color: var(--text-dim);
+}
