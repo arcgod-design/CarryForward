@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import path from "path";
 import { scanRepository } from "./scanner";
 import { buildKnowledge } from "./graph";
+import { currentCommit } from "./diff";
 import * as store from "./store";
 import type { MaintenanceFlag, NodeWithEvidence, Project, RefreshResponse } from "../../shared/types";
 
@@ -99,6 +100,8 @@ export async function refreshProject(project: Project): Promise<RefreshResponse>
   store.replaceDiscoveredKnowledge(project.id, knowledge);
 
   const latestFiles = new Map(result.files.map((f) => [f.relativePath, f.contentHash]));
+  const commit = await currentCommit(project.rootPath);
+  store.updateScanTime(project.id, commit);
   const changedFiles: string[] = [];
   for (const f of result.files) {
     const old = beforeByPath.get(f.relativePath);

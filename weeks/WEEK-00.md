@@ -8,8 +8,8 @@
 
 ## Rolling handoff (update every session)
 
-- **Date**: 2026-10-27
-- **In-flight week**: WEEK-01 — all build slices complete and verified; ship-readiness items are learner-blocked.
-- **Stack state**: `npm install` → `npm run demo` → http://localhost:8787 works end to end; `npx vitest run` → 72/72; `npm run build` clean; `npm run fixture` regenerates the demo repo.
-- **Next concrete step**: learner chooses the license (USER-THING-TO-DO #2) → agent commits LICENSE → repo audit → push on learner's go → learner records video → learner submits.
-- **Blockers**: submission-window verification, license choice, video recording, submission itself — USER-THING-TO-DO.md items 1–6.
+- **Date**: 2026-10-27 (session 2)
+- **In-flight week**: WEEK-02 — graph experience upgrades built and verified (79/79 tests; live aws-repo checks in PROJECT_STATUS.md); remaining items are learner-blocked.
+- **Stack state**: `npm install` → `npm run demo` → http://localhost:8787 runs the current build; `npx vitest run` → 79/79; `npm run build` clean; `npm run fixture` regenerates the demo repo; graph.html downloadable from the Graph view.
+- **Next concrete step**: learner re-checks the upgraded graph (hard-refresh, expand a folder node, download graph.html), then records the video and submits on Devpost.
+- **Blockers**: submission-window verification, demo confirmation, video, submission — USER-THING-TO-DO.md items 1, 3, 4, 6, 7.

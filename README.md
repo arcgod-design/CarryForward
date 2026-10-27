@@ -13,8 +13,8 @@ Your project's rules live everywhere and nowhere: `AGENTS.md`, `CLAUDE.md`, deci
 1. **Open a repository** — validated path, scan bounded to the selected root, visible exclusions (`.git`, `node_modules`, `.env*`, key files are never read), honest empty/error states. Nothing leaves your machine.
 2. **Discover with evidence** — deterministic parsers recognize instruction files, project-core/status docs, decision records (ADRs), manifests, configs, and structure. Every candidate principle carries its **source path, line range, excerpt, classification, and confidence**. Code demonstrates what exists; nothing becomes a rule until you approve it.
 3. **Approve principles** — machine candidates and user-approved rules are structurally distinct. Approve, edit-then-approve, reject, mark uncertain, or write your own. Every action is attributed and survives restarts and rescans — refresh never rewrites your approvals.
-4. **Browse the graph** — a small typed graph (principles, decisions, components, conventions, procedures, dependencies, verifications, status questions) with evidence-backed links only. Navigable canvas + searchable list, filters, focus view, and a `graph.json` export.
-5. **Generate the instruction pack** — a deterministic AGENTS.md-style file from your approved rules with source pointers, decisions and their status, verification procedures, and uncertainty notes. Unreviewed machine candidates are deliberately excluded and counted. Export never silently overwrites an existing instruction file.
+4. **Browse the graph** — a small typed graph (principles, decisions, components, conventions, procedures, dependencies, verifications, status questions) with evidence-backed links only. Navigable canvas + searchable list, filters, focus view, and a `graph.json` export. **Double-click a folder node to expand its files** — each file leaf shows the knowledge extracted from it — and download **graph.html**: a self-contained, interactive snapshot of the whole project memory (cytoscape inlined, works offline, send it to anyone).
+5. **Generate the instruction pack** — a deterministic AGENTS.md-style file from your approved rules with source pointers, decisions and their status, verification procedures, uncertainty notes, and a **repository knowledge-structure section** (where the project's decision records, status ledgers, and topic memory live, by file role). Unreviewed machine candidates are deliberately excluded and counted. Export never silently overwrites an existing instruction file. Evidence is **pinned to the git commit** it was captured at.
 6. **Check changes** — read the repo's real git diff (staged/unstaged/HEAD) or paste one. Approved rules can encode **`Forbidden pattern: <regex> in <path>`** lines for deterministic checks; missing-test presence and status-evidence changes are flagged too. Every finding shows severity, an honest certainty label (`deterministic` / `strong evidence` / `possible concern` / `needs human review`), evidence on both sides, and a recommended action. "No findings" is always scoped: only the checks that ran found nothing.
 7. **Maintain the knowledge** — refresh re-parses changed files and flags **stale evidence** (file gone or changed) and **conflicting decisions** (e.g., ADR 0002 supersedes ADR 0001 while 0001 still says "accepted") — both sides shown, resolved only by you. An opt-in file watcher (best-effort) triggers refreshes; manual refresh always works.
 
@@ -28,7 +28,7 @@ npm run demo        # build + start → http://localhost:8787
 
 Open http://localhost:8787, enter the absolute path to `fixtures/demo-repo`, scan it, approve the repository-layer principle (add the `Forbidden pattern:` line as shown in the Principles view hint below), then run Change Check — the fixture ships with a pending violating diff.
 
-For development: `npm run dev` (server + web hot-reload). Tests: `npm test` (72 tests, including a full-loop end-to-end run against the fixture). Reset the demo any time with `npm run fixture`.
+For development: `npm run dev` (server + web hot-reload). Tests: `npm test` (79 tests, including a full-loop end-to-end run against the fixture). Reset the demo any time with `npm run fixture`.
 
 ## Requirements
 
@@ -50,7 +50,9 @@ Express + better-sqlite3 backend (`server/src`), Vite + React + plain-CSS fronte
 - Discovery is deliberately conservative; unusual documentation formats may produce no candidates (honest empty states, no guessing). Heuristics are English-language.
 - Mechanical pattern checks fire only for patterns you explicitly encode; prose rules appear as applicable-rule context, not fake enforcement.
 - The watcher is best-effort (OneDrive-synced folders can duplicate/delay events); manual refresh is the guaranteed path.
-- Scan caps (5000 files, depth 12, 512KB/file) protect against runaway scans; partial results are labeled.
+- Scan caps (20,000 files, depth 16, 512KB/file, 8,000 dirs) protect against runaway scans; partial results are labeled. The canvas curates by default (dependencies/unconnected behind a toggle) — the list view and exports always hold the full set.
+- AST/symbol-level code graphs are roadmap; discovery is docs/config/structure-based by design.
+- graph.html is a static snapshot of the last scan — it does not re-scan.
 
 ## Long-term vision
 

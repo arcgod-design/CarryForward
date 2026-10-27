@@ -152,6 +152,7 @@ const MIGRATIONS: string[] = [
    );
    CREATE INDEX idx_flags_project ON maintenance_flags(project_id);
    ALTER TABLE evidence ADD COLUMN content_hash TEXT;`,
+  `ALTER TABLE projects ADD COLUMN last_commit TEXT;`,
 ];
 
 function migrate(database: Database.Database): void {

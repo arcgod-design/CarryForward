@@ -178,7 +178,7 @@ function buildComponents(projectId: string, root: string, parsedFiles: ParsedFil
     byDir.set(top, list);
   }
   const entries: ComponentEntry[] = [];
-  for (const [name, files] of [...byDir.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(0, 25)) {
+  for (const [name, files] of [...byDir.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(0, 50)) {
     const codeCount = files.filter((f) => isCodePath(f.relativePath)).length;
     if (codeCount === 0) continue;
     if (name.startsWith(".") || GENERATED_DIRS.has(name)) continue;

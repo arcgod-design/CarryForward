@@ -9,6 +9,7 @@ interface ProjectRow {
   root_path: string;
   created_at: string;
   last_scan_at: string | null;
+  last_commit: string | null;
 }
 
 interface SourceFileRow {
@@ -29,6 +30,7 @@ function rowToProject(row: ProjectRow): Project {
     rootPath: row.root_path,
     createdAt: row.created_at,
     lastScanAt: row.last_scan_at,
+    lastCommit: row.last_commit,
   };
 }
 
@@ -53,9 +55,10 @@ export function createProject(rootPath: string, displayName: string): Project {
     rootPath,
     createdAt: new Date().toISOString(),
     lastScanAt: null,
+    lastCommit: null,
   };
   db.prepare(
-    "INSERT INTO projects (id, display_name, root_path, created_at, last_scan_at) VALUES (@id, @displayName, @rootPath, @createdAt, @lastScanAt)"
+    "INSERT INTO projects (id, display_name, root_path, created_at, last_scan_at, last_commit) VALUES (@id, @displayName, @rootPath, @createdAt, @lastScanAt, @lastCommit)"
   ).run(project);
   return project;
 }
@@ -72,8 +75,14 @@ export function getProjectByRoot(rootPath: string): Project | undefined {
   return row ? rowToProject(row) : undefined;
 }
 
-export function updateScanTime(id: string): void {
-  getDb().prepare("UPDATE projects SET last_scan_at = ? WHERE id = ?").run(new Date().toISOString(), id);
+export function updateScanTime(id: string, lastCommit?: string | null): void {
+  if (lastCommit === undefined) {
+    getDb().prepare("UPDATE projects SET last_scan_at = ? WHERE id = ?").run(new Date().toISOString(), id);
+  } else {
+    getDb()
+      .prepare("UPDATE projects SET last_scan_at = ?, last_commit = ? WHERE id = ?")
+      .run(new Date().toISOString(), lastCommit, id);
+  }
 }
 
 export function deleteProject(id: string): void {

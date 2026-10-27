@@ -85,9 +85,9 @@ const STATUS_LINE_RE = /^[-*\s]*(.+?)\s*[—:|-]\s*(WORKING|PROTO|ROADMAP|DONE|B
 const TODO_RE = /\b(TODO|FIXME|OPEN QUESTION)\b/i;
 const SUPERSEDES_RE = /supersedes?\s*(?:adr[- #]*)?(\d{1,4})/i;
 
-const MAX_RULE_ITEMS = 120;
-const MAX_OPEN_QUESTIONS = 20;
-const MAX_ITEM_TOTAL = 400;
+const MAX_RULE_ITEMS = 400;
+const MAX_OPEN_QUESTIONS = 50;
+const MAX_ITEM_TOTAL = 1500;
 
 function cleanExcerpt(line: string): string {
   let text = line.replace(LIST_ITEM_RE, "").trim();

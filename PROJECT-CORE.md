@@ -16,6 +16,7 @@ CarryForward is a local, individual-first project maintainer: an evidence-backed
 - **D-0006 — Instruction pack safety:** deterministic from the approved graph; binding sections include only user-approved rules; candidates are explicitly excluded and counted; export never silently overwrites (409 + explicit confirm).
 - **D-0007 — Findings honesty:** every finding carries severity, certainty tier (`deterministic` / `strong-evidence` / `possible-concern` / `needs-human-review`), both-side evidence, and a recommendation. "No findings" is always scoped to the checks that ran.
 - **D-0008 — Maintenance never decides:** refresh flags stale/conflicting knowledge (missing or changed evidence, supersession conflicts) with both sides shown; only the user resolves or dismisses, and resolutions persist while the same condition persists.
+- **D-0009 — Graph experience (ADR 0006):** caps raised with pathological-repo floors kept (uncapped graphs are unreadable and unsafe — Graphify itself caps at 5,000 with aggregation); folder drill-down renders stored file records as UI leaves, never as knowledge nodes; a self-contained graph.html report ships the whole memory in one file (archify-inspired, built natively); every scan pins evidence to the git commit it captured; the instruction pack documents the repository's knowledge structure by file role.
 
 ## Working rules for this repository
 

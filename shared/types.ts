@@ -44,6 +44,7 @@ export interface Project {
   rootPath: string;
   createdAt: string;
   lastScanAt: string | null;
+  lastCommit: string | null;
 }
 
 export interface ScannedFile {

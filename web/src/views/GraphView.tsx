@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import cytoscape, { type Core, type EventObject } from "cytoscape";
-import type { Project, NodeWithEvidence, KnowledgeEdge, NodeType, EdgeRelation } from "../../../shared/types";
+import type { Project, NodeWithEvidence, KnowledgeEdge, NodeType, EdgeRelation, SourceFileRecord } from "../../../shared/types";
 import { api } from "../api";
 
 const TYPE_COLORS: Record<string, string> = {
@@ -35,6 +35,8 @@ interface GraphData {
 
 export function GraphView({ project }: { project: Project | null }) {
   const [data, setData] = useState<GraphData | null>(null);
+  const [files, setFiles] = useState<SourceFileRecord[] | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -48,15 +50,21 @@ export function GraphView({ project }: { project: Project | null }) {
   const cyRef = useRef<Core | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const selectedRef = useRef<string | null>(null);
+  const dataRef = useRef<GraphData | null>(null);
   const applyLabelsRef = useRef<(() => void) | null>(null);
+  const expandToggleRef = useRef<((id: string) => void) | null>(null);
 
   selectedRef.current = selectedId;
+  dataRef.current = data;
 
   function load(p: Project | null) {
     if (!p) return;
     api<GraphData>(`/projects/${p.id}/nodes`)
       .then(setData)
       .catch((err) => setError((err as Error).message));
+    api<{ files: SourceFileRecord[] }>(`/projects/${p.id}/files`)
+      .then((res) => setFiles(res.files))
+      .catch(() => setFiles(null));
   }
 
   useEffect(() => {
@@ -64,9 +72,33 @@ export function GraphView({ project }: { project: Project | null }) {
     setData(null);
     setError(null);
     setSelectedId(null);
+    setExpandedFolders(new Set());
     load(project);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);
+
+  const bySourcePath = useMemo(() => {
+    const map = new Map<string, NodeWithEvidence[]>();
+    if (!data) return map;
+    for (const n of data.nodes) {
+      for (const ev of n.evidence) {
+        const list = map.get(ev.sourcePath) ?? [];
+        list.push(n);
+        map.set(ev.sourcePath, list);
+      }
+    }
+    return map;
+  }, [data]);
+
+  function toggleFolder(componentNodeId: string): void {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(componentNodeId)) next.delete(componentNodeId);
+      else next.add(componentNodeId);
+      return next;
+    });
+  }
+  expandToggleRef.current = toggleFolder;
 
   const connectedIds = useMemo(() => {
     const set = new Set<string>();
@@ -100,6 +132,38 @@ export function GraphView({ project }: { project: Project | null }) {
     });
   }, [data, typeFilter, query, focusMode, selectedId, neighbors, showAll, connectedIds]);
 
+  const fileElements = useMemo(() => {
+    if (!data || !files) return { nodes: [] as cytoscape.ElementDefinition[], edges: [] as cytoscape.ElementDefinition[] };
+    const componentByName = new Map(
+      data.nodes.filter((n) => n.node.type === "component").map((n) => [n.node.title.replace(/^Component: /, "").replace(/\/$/, ""), n.node.id])
+    );
+    const nodes: cytoscape.ElementDefinition[] = [];
+    const edges: cytoscape.ElementDefinition[] = [];
+    for (const [componentId] of expandedFolders) {
+      const compName = [...componentByName.entries()].find(([, id]) => id === componentId)?.[0];
+      if (!compName) continue;
+      const dirFiles = files.filter((f) => f.parseStatus === "parsed" && (f.relativePath === compName || f.relativePath.startsWith(`${compName}/`))).slice(0, 200);
+      for (const f of dirFiles) {
+        const id = `file:${f.relativePath}`;
+        const contributed = (bySourcePath.get(f.relativePath) ?? []).length;
+        nodes.push({
+          data: {
+            id,
+            label: f.relativePath.split("/").pop() ?? f.relativePath,
+            isFile: true,
+            path: f.relativePath,
+            contributed,
+            color: contributed > 0 ? "#2c6e67" : "#313c4a",
+          },
+        });
+        edges.push({
+          data: { id: `fileedge:${f.relativePath}`, source: componentId, target: id, fileEdge: true },
+        });
+      }
+    }
+    return { nodes, edges };
+  }, [data, files, expandedFolders, bySourcePath]);
+
   useEffect(() => {
     if (!containerRef.current || !data) return;
     const visibleIds = new Set(visibleNodes.map((n) => n.node.id));
@@ -113,6 +177,7 @@ export function GraphView({ project }: { project: Project | null }) {
           rejected: n.node.status === "rejected",
         },
       })),
+      ...fileElements.nodes,
       ...data.edges
         .filter((e) => visibleIds.has(e.sourceNodeId) && visibleIds.has(e.targetNodeId))
         .map((e) => ({
@@ -124,6 +189,7 @@ export function GraphView({ project }: { project: Project | null }) {
             userOrigin: e.origin === "user",
           },
         })),
+      ...fileElements.edges,
     ];
 
     const applyLabels = () => {
@@ -180,6 +246,24 @@ export function GraphView({ project }: { project: Project | null }) {
             },
           },
           {
+            selector: "node[isFile]",
+            style: {
+              shape: "rectangle",
+              width: 18,
+              height: 12,
+              "font-size": 8,
+              "background-color": "data(color)",
+            },
+          },
+          {
+            selector: "edge[fileEdge]",
+            style: {
+              "line-color": "#1f2833",
+              "target-arrow-color": "#1f2833",
+              width: 1,
+            },
+          },
+          {
             selector: "node[approved]",
             style: {
               "border-color": "#3fb950",
@@ -233,6 +317,14 @@ export function GraphView({ project }: { project: Project | null }) {
       cy.on("tap", (ev: EventObject) => {
         if (ev.target === cy) setSelectedId(null);
       });
+      cy.on("dblclick", "node", (ev: EventObject) => {
+        const d = ev.target.data();
+        if (d.isFile) return;
+        const node = dataRef.current?.nodes.find((n) => n.node.id === ev.target.id());
+        if (node?.node.type === "component") {
+          expandToggleRef.current?.(ev.target.id());
+        }
+      });
       cy.on("mouseover", "node", (ev: EventObject) => {
         ev.target.addClass("hoverLabel");
       });
@@ -256,7 +348,7 @@ export function GraphView({ project }: { project: Project | null }) {
       } as never).run();
     }
     applyLabels();
-  }, [data, visibleNodes]);
+  }, [data, visibleNodes, fileElements]);
 
   useEffect(() => {
     applyLabelsRef.current?.();
@@ -273,6 +365,12 @@ export function GraphView({ project }: { project: Project | null }) {
     () => data?.nodes.find((n) => n.node.id === selectedId) ?? null,
     [data, selectedId]
   );
+
+  const selectedFile = useMemo(() => {
+    if (!files || !selectedId || !selectedId.startsWith("file:")) return null;
+    const path = selectedId.slice("file:".length);
+    return { path, record: files.find((f) => f.relativePath === path) ?? null };
+  }, [files, selectedId]);
 
   const connected = useMemo(() => {
     if (!data || !selectedId) return [];
@@ -386,13 +484,15 @@ export function GraphView({ project }: { project: Project | null }) {
               />
               Show all nodes (incl. dependencies + unconnected)
             </label>
-            <p className="dim">
-              Canvas: {visibleNodes.length} shown (dependencies and unconnected nodes hidden by default). Zoom in to
-              reveal labels; hover a node to show its label.
-            </p>
-            <button className="btn small" onClick={() => window.open(`/api/projects/${project.id}/graph/export`, "_blank")}>
-              Export graph.json
-            </button>
+            <p className="dim">{visibleNodes.length} nodes shown (dependencies and unconnected nodes hidden by default). Zoom in to reveal labels; hover a node to show its label; double-click a folder node to expand its files.</p>
+            <div className="row">
+              <button className="btn small" onClick={() => window.open(`/api/projects/${project.id}/graph/report`, "_blank")}>
+                Download graph.html (shareable)
+              </button>
+              <button className="btn small" onClick={() => window.open(`/api/projects/${project.id}/graph/export`, "_blank")}>
+                Export graph.json
+              </button>
+            </div>
             <div className="graph-node-list">
               {visibleNodes.map(({ node }) => (
                 <button
@@ -429,6 +529,38 @@ export function GraphView({ project }: { project: Project | null }) {
             )}
           </div>
 
+          {selectedFile && (
+            <aside className="graph-detail panel" aria-label="Selected file details">
+              <h2 className="mono">{selectedFile.path}</h2>
+              {selectedFile.record ? (
+                <p className="dim">
+                  {Math.ceil(selectedFile.record.size / 1024)} KB · last seen{" "}
+                  {selectedFile.record.mtime ? new Date(selectedFile.record.mtime).toLocaleString() : "unknown"}
+                </p>
+              ) : (
+                <p className="dim">Recorded in an earlier scan; not present in the latest one.</p>
+              )}
+              <h3>Knowledge contributed by this file</h3>
+              {(() => {
+                const contributions = bySourcePath.get(selectedFile.path) ?? [];
+                if (contributions.length === 0) {
+                  return <p className="dim">This file contributed no extracted knowledge — it is context, not a source of recorded rules or decisions.</p>;
+                }
+                return contributions.map((c) => (
+                  <button
+                    key={`${c.node.id}-${selectedFile!.path}`}
+                    className="graph-list-item"
+                    onClick={() => setSelectedId(c.node.id)}
+                  >
+                    <span className={`badge ${c.node.status === "user-approved" ? "approved" : c.node.status === "candidate" ? "candidate" : "inferred"}`}>{c.node.status}</span>
+                    <span className="graph-list-title">{c.node.title}</span>
+                    <span className="badge">{c.node.type}</span>
+                  </button>
+                ));
+              })()}
+            </aside>
+          )}
+
           {selected && (
             <aside className="graph-detail panel" aria-label="Selected node details">
               <h2>{selected.node.title}</h2>
@@ -452,6 +584,27 @@ export function GraphView({ project }: { project: Project | null }) {
                   <pre className="excerpt">{ev.excerpt}</pre>
                 </div>
               ))}
+
+              {selected.node.type === "component" && (
+                <>
+                  <h3>Folder contents</h3>
+                  {(() => {
+                    const compName = selected.node.title.replace(/^Component: /, "").replace(/\/$/, "");
+                    const dirFiles = (files ?? []).filter((f) => f.relativePath === compName || f.relativePath.startsWith(`${compName}/`));
+                    return (
+                      <>
+                        <p className="dim">{dirFiles.length} file(s) recorded in the last scan.</p>
+                        <div className="action-row">
+                          <button className="btn small" onClick={() => toggleFolder(selected.node.id)} disabled={!files}>
+                            {expandedFolders.has(selected.node.id) ? "Collapse on canvas" : "Expand on canvas"}
+                          </button>
+                        </div>
+                        <p className="dim">Double-clicking the folder node on the canvas does the same.</p>
+                      </>
+                    );
+                  })()}
+                </>
+              )}
 
               <h3>Connected ({connected.length})</h3>
               {connected.length === 0 && <p className="dim">No links yet.</p>}

@@ -1,7 +1,51 @@
 import { createHash } from "crypto";
 import * as store from "./store";
 import { findSecrets } from "./secrets";
+import { fileRole } from "./extractor";
 import type { Project, NodeWithEvidence, KnowledgeEdge } from "../../shared/types";
+
+const ROLE_MEANING: Record<string, { title: string; guidance: string }> = {
+  "agent-instructions": {
+    title: "Agent instruction files",
+    guidance: "Read these first: the project's own instructions to coding agents.",
+  },
+  core: {
+    title: "Project core / locked decisions",
+    guidance: "Authoritative approved principles and locked decisions. Do not silently override.",
+  },
+  status: {
+    title: "Status and task records",
+    guidance: "Current capability state and task boards. Trust recorded evidence over memory.",
+  },
+  "decision-record": {
+    title: "Decision records (ADRs)",
+    guidance: "Numbered, dated decisions with rationale. Check for supersession before citing an older record.",
+  },
+  "topic-memory": {
+    title: "Topic memory (errors / tactics / focus)",
+    guidance: "Search error memory before debugging anything recurring.",
+  },
+  "week-record": {
+    title: "Weekly work records",
+    guidance: "Scoped milestones with exit tests; historical progress, not current status by itself.",
+  },
+  entry: {
+    title: "Entry documentation",
+    guidance: "README/contribution/security docs — how the project presents itself and expects contributions.",
+  },
+  docs: {
+    title: "General documentation",
+    guidance: "Vision, architecture, and planning documents.",
+  },
+  manifest: {
+    title: "Package manifests",
+    guidance: "Declared scripts and dependencies — the source of the verification procedures below.",
+  },
+  config: {
+    title: "Tool configuration",
+    guidance: "Lint/format/test configuration — conventions enforced by tooling.",
+  },
+};
 
 export interface GeneratedPack {
   content: string;
@@ -70,6 +114,9 @@ export function generatePack(project: Project): GeneratedPack {
   lines.push("");
   lines.push("## Project");
   lines.push(`Repository: ${project.rootPath}`);
+  if (project.lastCommit) {
+    lines.push(`Evidence captured at commit: ${project.lastCommit.slice(0, 12)} (recorded at the last scan; the working tree may have moved ahead).`);
+  }
   if (entryDocPaths.length > 0) {
     lines.push("Source-of-truth documentation discovered in this repository:");
     for (const p of entryDocPaths) lines.push(`- ${p}`);
@@ -77,6 +124,33 @@ export function generatePack(project: Project): GeneratedPack {
     lines.push("No standard instruction/core documentation was discovered by the last scan.");
   }
   lines.push("");
+
+  const roleGroups = new Map<string, Set<string>>();
+  for (const n of nodes) {
+    for (const ev of n.evidence) {
+      const role = fileRole(ev.sourcePath);
+      const set = roleGroups.get(role) ?? new Set<string>();
+      set.add(ev.sourcePath);
+      roleGroups.set(role, set);
+    }
+  }
+  const roleOrder = ["agent-instructions", "core", "status", "decision-record", "topic-memory", "week-record", "entry", "docs", "manifest", "config"];
+  const structuredRoles = [...roleGroups.entries()].filter(([role]) => roleOrder.includes(role));
+  if (structuredRoles.length > 0) {
+    lines.push("## Repository knowledge structure");
+    lines.push("Where this project keeps its working knowledge. Read the relevant files at their cited locations before changing related code — the source files are authoritative.");
+    for (const role of roleOrder) {
+      const entry = structuredRoles.find(([r]) => r === role);
+      if (!entry) continue;
+      const meaning = ROLE_MEANING[role];
+      if (!meaning) continue;
+      const paths = [...entry[1]].sort().slice(0, 30);
+      lines.push(`### ${meaning.title}`);
+      lines.push(meaning.guidance);
+      for (const p of paths) lines.push(`- ${p}`);
+      lines.push("");
+    }
+  }
 
   lines.push("## Approved principles and conventions");
   if (approvedRules.length === 0) {

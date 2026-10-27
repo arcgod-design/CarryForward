@@ -27,7 +27,7 @@
 <main>
   <div>
     <h1>CarryForward — App Map</h1>
-    <p class="sub">A compact map of what this app is, where the code lives, and how to change it. Snapshot of commit <code>32adc6f</code> (2026-10-27); the code may drift from this map.</p>
+    <p class="sub">A compact map of what this app is, where the code lives, and how to change it. Snapshot of the latest main (2026-10-27, session 2); the code may drift from this map.</p>
   </div>
 
   <section class="panel">
@@ -89,7 +89,8 @@
     <ul>
       <li><b>Add a discovery heuristic</b> → <code>server/src/extractor.ts</code> (<code>parseMarkdown()</code> and the role sets at the top), then mirror the expectation in <code>server/src/extractor.test.ts</code>.</li>
       <li><b>Change the pack's wording or sections</b> → <code>server/src/pack.ts</code> (<code>generatePack()</code>); determinism test lives in <code>server/src/pack.test.ts</code> — if you embed time or randomness, it will fail.</li>
-      <li><b>Adjust graph visuals</b> → <code>web/src/views/GraphView.tsx</code> (the <code>TYPE_COLORS</code> map and the cytoscape style array).</li>
+      <li><b>Adjust graph visuals</b> → <code>web/src/views/GraphView.tsx</code> (the <code>TYPE_COLORS</code> map and the cytoscape style array). Folder drill-down lives there too: double-click a component node renders its stored files as rectangle leaves.</li>
+      <li><b>Change the standalone report</b> → <code>server/src/report.ts</code> (<code>buildGraphReportHtml()</code>) — one self-contained HTML; the embedded JSON escapes <code><</code> so it cannot break parsing.</li>
       <li><b>Add a maintenance check</b> → <code>server/src/maintenance.ts</code> (<code>detectStale()</code> / <code>detectSupersessionConflicts()</code>); flags need a stable <code>signature</code> so dismissals survive refreshes.</li>
       <li><b>Change the database schema</b> → append a new string to <code>MIGRATIONS</code> in <code>server/src/db.ts</code> (never edit an applied migration) and extend <code>server/src/store.ts</code>.</li>
     </ul>
@@ -105,8 +106,8 @@
     <pre>npm install
 npm run fixture     # regenerate the synthetic demo repository (fixtures/demo-repo)
 npm run demo        # build + start → http://localhost:8787
-npm test            # 72 tests incl. the full-loop end-to-end</pre>
-    <p class="dim">Snapshot generated at commit <code>32adc6f</code>; verify against the current source after pulling.</p>
+npm test            # 79 tests incl. the full-loop end-to-end</pre>
+    <p class="dim">Snapshot generated during the 2026-10-27 session-2 graph-upgrade round; verify against the current source after pulling.</p>
   </section>
 </main>
 </body>

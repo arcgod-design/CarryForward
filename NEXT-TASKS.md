@@ -1,23 +1,25 @@
 # NEXT-TASKS.md
 
-Ordered task board, active week: WEEK-01 (build + ship). Updated 2026-10-27.
+Ordered task board, active week: WEEK-02 (graph experience upgrades + ship). Updated 2026-10-27, session 2.
 
-1. [x] Slices 1–8 of `devpost/checklist.md` — built, verified (72/72), committed.
-2. [x] Discipline docs (AGENTS/CLAUDE/PROJECT-CORE/PROJECT_STATUS/SESSION-STATE/NEXT-TASKS/USER-THING-TO-DO, docs/, doc-of-journey/, weeks/) — written truthfully from observed build state.
-3. [ ] LICENSE — blocked on learner's choice (MIT recommended). Add file + package.json license field, commit.
-4. [ ] Final repo audit before publication: `git status` clean, tracked-file list reviewed, no secrets/private content, `.env`/`data/`/`fixtures/` confirmed ignored.
-5. [ ] Public GitHub push — on learner's explicit go (gh authenticated as arcgod-design).
-6. [ ] Demo video — learner records; script below in this file; agent prepared the shot list.
-7. [ ] Devpost submission (learner-only): repo URL, description, video link, personal answers.
-8. [ ] 5-build wrap-up: final review feedback + learning wrap-up + `devpost/app-map.html`.
+1. [x] Slices 1–8 of `devpost/checklist.md` — built, verified, committed.
+2. [x] Discipline docs — written truthfully from observed build state.
+3. [x] LICENSE (MIT) + package.json license field — committed.
+4. [x] Final repo audit — 93 tracked files, zero real secrets, learner profile untracked.
+5. [x] Public GitHub push — https://github.com/arcgod-design/CarryForward (public, verified).
+6. [x] Graph experience round (ADR 0006): raised caps, component-noise fix, curated canvas, zoom/hover labels, legend, expandable folder nodes, graph.html report, commit pinning, pack knowledge-structure section. 79/79 tests.
+7. [ ] Learner re-checks the upgraded graph (hard-refresh, expand a folder, download graph.html) → declares demo passed.
+8. [ ] Demo video — learner records; shot list below.
+9. [ ] Devpost submission (learner-only): repo URL, description, video link, personal answers.
+10. [ ] 5-build wrap-up box: final review confirmation (learner).
 
 ## Demo video shot list (~2:40)
 
 1. (0:00–0:20) Problem: rules scattered across repo files; agents miss them. Screen: CarryForward Project view.
 2. (0:20–0:40) Open `fixtures/demo-repo`; scan; show exclusions notice.
 3. (0:40–1:10) Principles: open the repository-layer candidate → evidence `PROJECT-CORE.md:7` → approve (edit adds `Forbidden pattern: \bquery\s*\( in src/services`).
-4. (1:10–1:30) Graph: click the approved rule → walk to component/decision → evidence panel.
-5. (1:30–1:50) Instruction Pack: generate → preview → copy; point at "candidates excluded" note.
-6. (1:50–2:20) Change Check: unstaged diff → deterministic blocking finding, both evidence sides, certainty label; show scoped no-findings language isn't needed here (finding exists).
+4. (1:10–1:30) Graph: click the approved rule → walk to the src component → double-click to expand its files → click a file to show what it contributed → mention "Download graph.html" (one-file shareable memory).
+5. (1:30–1:50) Instruction Pack: generate → preview (point at the repository-knowledge-structure section + excluded-candidates note) → copy.
+6. (1:50–2:20) Change Check: unstaged diff → deterministic blocking finding, both evidence sides, certainty label.
 7. (2:20–2:35) Maintenance: refresh → conflict flag (ADR 0001 vs 0002) with both sides; resolve it.
 8. (2:35–2:45) Honest close: "local MVP today; shared team workspaces are the roadmap."

@@ -70,6 +70,10 @@ PRD ref: `prd.md > Discovery and evidence`.
 SQLite schema for projects, source_files, evidence, nodes, edges, packs, review_runs, findings, maintenance flags, resolutions; stable UUIDs; a small data-access boundary so the store can swap to JSON without touching the rest; version field + tiny migration hook.
 PRD ref: `prd.md > Knowledge graph`, `prd.md > States and Boundaries` (persistence).
 
+### Standalone graph report (`server/src/report.ts`)
+Self-contained graph.html artifact generator (added per ADR 0006, archify-inspired, built natively): cytoscape inlined, embedded escaped JSON, zoom-gated labels, legend, evidence panel, folder file lists, file→knowledge drill-through, commit pin in the header. Static snapshot of the last scan.
+PRD ref: `prd.md > Knowledge graph` (navigable without the app).
+
 ### Approval service (`server/src/approvals.ts`)
 Approve/edit/reject/uncertain/deprecate with attribution (local user, timestamp) and history records; enforces candidate-vs-approved separation; refresh never downgrades user-approved items.
 PRD ref: `prd.md > Principles and decisions review`.
@@ -131,10 +135,11 @@ CarryForward/
 │   │   ├── graph.ts          # nodes/edges construction
 │   │   ├── approvals.ts      # review workflow + history
 │   │   ├── pack.ts           # instruction pack generation
-│   │   ├── diff.ts           # git diff capture + hunk parse + redaction
+│   │   ├── diff.ts           # git diff capture + hunk parse + redaction + commit pin
 │   │   ├── checker.ts        # rule matching + deterministic checks + findings
 │   │   ├── watcher.ts        # phase 2: file watching + refresh
 │   │   ├── maintenance.ts   # phase 2: stale/conflict detection
+│   │   ├── report.ts         # standalone graph.html generator (ADR 0006)
 │   │   └── secrets.ts        # secret-pattern detection/redaction
 │   └── (co-located *.test.ts)
 ├── web/

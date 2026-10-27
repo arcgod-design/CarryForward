@@ -94,8 +94,8 @@ function record(
 }
 
 export async function scanRepository(root: string, opts: ScanOptions = {}): Promise<ScanResult> {
-  const maxFiles = opts.maxFiles ?? 5000;
-  const maxDepth = opts.maxDepth ?? 12;
+  const maxFiles = opts.maxFiles ?? 20000;
+  const maxDepth = opts.maxDepth ?? 16;
   const maxReadSize = opts.maxReadSize ?? 512 * 1024;
 
   const files: ScannedFile[] = [];
@@ -122,7 +122,7 @@ export async function scanRepository(root: string, opts: ScanOptions = {}): Prom
     }
 
     dirsSeen += 1;
-    if (dirsSeen > 4000) {
+    if (dirsSeen > 8000) {
       truncated = true;
       break;
     }

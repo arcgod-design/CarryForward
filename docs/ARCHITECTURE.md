@@ -16,10 +16,11 @@ Express app (server/src/index.ts → routes.ts)
    ├── graph.ts        evidence-backed nodes/edges (stable IDs)
    ├── approvals.ts    review workflow + attribution + history
    ├── pack.ts         deterministic instruction pack + fingerprint
-   ├── diff.ts         git capture (execFile) + parse-diff + redaction
+   ├── diff.ts         git capture (execFile), parse-diff, redaction, commit pin
    ├── checker.ts      rule matching + deterministic checks → findings
    ├── maintenance.ts  refresh + stale/conflict detection
    ├── watcher.ts      chokidar opt-in watcher (best-effort)
+   ├── report.ts       standalone graph.html generator (archify-inspired, built natively)
    ├── secrets.ts      secret patterns + redaction
    ├── store.ts        data-access boundary (all SQL lives here)
    └── db.ts           better-sqlite3 + sequential migrations (user_version)
@@ -47,7 +48,9 @@ The server is the single source of truth; views refetch after every action. Repo
 
 ## Known sharp edges (honest)
 
-- Scanner caps (5000 files / depth 12 / 512KB / 4000 dirs) — partial results labeled `truncated`.
+- Scanner caps (20,000 listed files / depth 16 / 512KB / 8,000 dirs — raised per ADR 0006; floors kept because uncapped reads of pathological repos are unsafe; Graphify itself aggregates above 5,000 rendered nodes) — partial results labeled `truncated`.
+- The canvas curates by default (dependencies and unconnected nodes behind a toggle); the full set always lives in the list view and exports. Folder drill-down renders stored `source_files` records as UI leaves — never fabricated knowledge nodes.
+- The graph.html report is a static snapshot (cytoscape inlined, ~3 MB per report); it does not re-scan.
 - parse-diff consumes standard unified diffs; rename/copy hunks may be skipped.
 - Chokidar on OneDrive-synced folders can duplicate/delay events; debounce + awaitWriteFinish mitigates; manual refresh is the guaranteed path.
 - English-language heuristics for rule/status extraction.

@@ -6,7 +6,8 @@ import { scanRepository } from "./scanner";
 import { buildKnowledge } from "./graph";
 import { reviewNode, createUserPrinciple, type ReviewAction } from "./approvals";
 import { generatePack } from "./pack";
-import { captureGitDiff, parseDiffText } from "./diff";
+import { buildGraphReportHtml } from "./report";
+import { captureGitDiff, parseDiffText, currentCommit } from "./diff";
 import { runChecks } from "./checker";
 import { refreshProject } from "./maintenance";
 import { startWatch, stopWatch, watchStatus } from "./watcher";
@@ -50,9 +51,10 @@ api.post("/projects/:id/scan", async (req, res) => {
   try {
     const result = await scanRepository(project.rootPath);
     store.replaceSourceFiles(project.id, result.files, result.skipped);
-    store.updateScanTime(project.id);
+    const commit = await currentCommit(project.rootPath);
+    store.updateScanTime(project.id, commit);
 
-    const knowledge = await buildKnowledge(project.id, project.rootPath, result.files.map((f) => ({ relativePath: f.relativePath, size: f.size })));
+    const knowledge = await buildKnowledge(project.id, project.rootPath, result.files.map((f) => ({ relativePath: f.relativePath, size: f.size, contentHash: f.contentHash })));
     store.replaceDiscoveredKnowledge(project.id, knowledge);
 
     const byType: Partial<Record<NodeType, number>> = {};
@@ -221,7 +223,6 @@ api.post("/projects/:id/refresh", async (req, res) => {
     const project = store.getProject(req.params.id);
     if (!project) return res.status(404).json({ error: "Project not found." });
     const result = await refreshProject(project);
-    store.updateScanTime(project.id);
     res.json(result);
   } catch (err) {
     console.error("refresh route failed:", err);
@@ -275,6 +276,16 @@ api.post("/projects/:id/watch/stop", (req, res) => {
   if (!project) return res.status(404).json({ error: "Project not found." });
   stopWatch(project.id);
   res.json({ stopped: true });
+});
+
+api.get("/projects/:id/graph/report", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const nodes = store.getNodesWithEvidence(project.id);
+  if (nodes.length === 0) return res.status(409).json({ error: "Scan the project first — there is no graph to report yet." });
+  const html = buildGraphReportHtml(project, nodes, store.getEdges(project.id), store.getSourceFiles(project.id));
+  res.setHeader("Content-Disposition", `attachment; filename="carryforward-graph-${project.displayName}.html"`);
+  res.type("html").send(html);
 });
 
 api.get("/projects/:id/graph/export", (req, res) => {

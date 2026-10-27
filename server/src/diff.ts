@@ -20,6 +20,16 @@ export async function captureGitDiff(root: string, source: DiffSource): Promise<
   return stdout;
 }
 
+export async function currentCommit(root: string): Promise<string | null> {
+  try {
+    const { stdout } = await exec("git", ["-C", root, "rev-parse", "HEAD"], { timeout: 10000 });
+    const hash = stdout.trim();
+    return /^[0-9a-f]{7,40}$/i.test(hash) ? hash : null;
+  } catch {
+    return null;
+  }
+}
+
 export function parseDiffText(
   text: string
 ): { files: DiffFile[]; redactions: string[] } {
