@@ -66,7 +66,7 @@ export function generatePack(project: Project): GeneratedPack {
 
   lines.push(`# CarryForward Instruction Pack — ${project.displayName}`);
   lines.push("");
-  lines.push(`Generated: ${generatedAt} · Source fingerprint: ${sourceFingerprint(nodes, edges)} · Deterministic from the approved graph.`);
+  lines.push(`Source fingerprint: ${sourceFingerprint(nodes, edges)} · Deterministic from the approved graph. Generated metadata (timestamp) is stored with the pack, not in it.`);
   lines.push("");
   lines.push("## Project");
   lines.push(`Repository: ${project.rootPath}`);
