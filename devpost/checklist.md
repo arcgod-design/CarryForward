@@ -109,15 +109,15 @@ Build mode: fast — recorded from the learner's standing directive ("just compl
 
 ## Code Tour and App Map
 
-- [ ] Learning activity complete — guided route, focused alternative, prior practice connected, or brief recap
-- [ ] Optional edit and transfer reflection addressed — offered/declined/already covered/not applicable as appropriate
-- [ ] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
+- [x] Learning activity complete — recorded as an evidence-based recap per the learner's standing directive (declined interactive tour/interviews); the map is labeled a reference route, not an interactive one
+- [ ] Optional edit and transfer reflection addressed — offered to the learner in the final report; pending their answer
+- [x] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
 
-Activity and evidence: [pending]
-Route and stops: [pending]
-Edit outcome: [pending]
-Reflection: [pending]
-Activity mode: [pending]
+Activity and evidence: Learner declined the onboarding interview ("get working") and directed one-go completion; per the wrap-up guidance this was recorded as a brief evidence-based recap, not hands-on practice. Recap connected the riskiest-dependency probe (better-sqlite3 smoke test, first build hour) to the reusable practice in the map.
+Route and stops: Reference route in devpost/app-map.html: routes.ts scan handler → approvals.ts reviewNode() → checker.ts runChecks() — labeled as reference, not toured interactively.
+Edit outcome: Not applicable — no safe-edit exercise was performed (learner declined; recorded honestly).
+Reflection: Offered in the final report — "What would you do differently next time you start with an agent?" — answer pending.
+Activity mode: recap (not hands-on)
 
 ## Revisions
 
