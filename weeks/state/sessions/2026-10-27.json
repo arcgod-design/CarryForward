@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-27",
+  "in_flight_week": "WEEK-01",
+  "week_status": "done",
+  "verified": [
+    "npx vitest run — 72 passed (72) across 10 test files (scanner, secrets, store, extractor/graph, approvals, pack, checker, maintenance, e2e full loop)",
+    "npm run build — tsc server + web --noEmit + vite build, clean exit",
+    "npm run fixture (x2) — synthetic demo repo regenerated; git status shows only the intended unstaged violating change",
+    "live HTTP check — scan/discovery evidence lines exact (PROJECT-CORE.md:7, explicit-rule, confidence high)",
+    "live HTTP check — approval flow: candidate -> user-approved, survived server restart and rescan with attribution intact",
+    "live HTTP check — pack export on existing AGENTS.md returned HTTP 409 (overwrite correctly blocked); CARRYFORWARD-INSTRUCTIONS.md export wrote the file; original AGENTS.md untouched",
+    "live HTTP check — real git diff produced: 1 finding across 1 changed file, kind=prohibited-pattern, certainty=deterministic, blocking=True, rule evidence AGENTS.md:5 (explicit-rule, confidence high), changed evidence src/services/user-service.ts:3 - db.query(...), disposition fixed persisted",
+    "live HTTP check — refresh flagged the fixture ADR 0002-vs-0001 conflict with both sides shown; resolve/dismiss flow verified in maintenance tests",
+    "live HTTP check — watcher: edit to PROJECT-CORE.md detected, debounced refresh ran (lastRefresh set), newly added rule appeared without manual action"
+  ],
+  "files_touched": [
+    "package.json", "package-lock.json", "tsconfig.server.json", "vite.config.ts", "vitest.config.ts", ".gitignore",
+    "shared/types.ts",
+    "server/src/index.ts", "server/src/routes.ts", "server/src/db.ts", "server/src/store.ts", "server/src/scanner.ts",
+    "server/src/secrets.ts", "server/src/extractor.ts", "server/src/graph.ts", "server/src/approvals.ts",
+    "server/src/pack.ts", "server/src/diff.ts", "server/src/checker.ts", "server/src/maintenance.ts",
+    "server/src/watcher.ts",
+    "server/src/scanner.test.ts", "server/src/secrets.test.ts", "server/src/store.test.ts", "server/src/extractor.test.ts",
+    "server/src/approvals.test.ts", "server/src/pack.test.ts", "server/src/checker.test.ts", "server/src/maintenance.test.ts",
+    "server/src/e2e.loop.test.ts", "server/src/graph.test.ts",
+    "web/index.html", "web/tsconfig.json", "web/src/main.tsx", "web/src/App.tsx", "web/src/api.ts", "web/src/styles.css",
+    "web/src/views/ProjectView.tsx", "web/src/views/OverviewView.tsx", "web/src/views/PrinciplesView.tsx",
+    "web/src/views/GraphView.tsx", "web/src/views/PackView.tsx", "web/src/views/ChangeCheckView.tsx",
+    "web/src/views/MaintenanceView.tsx", "web/src/views/shared.tsx",
+    "scripts/make-fixture.ts",
+    "devpost/scope.md", "devpost/prd.md", "devpost/spec.md", "devpost/checklist.md", "devpost/learner-profile.md (gitignored)",
+    "AGENTS.md", "CLAUDE.md", "README.md", "PROJECT-CORE.md", "PROJECT_STATUS.md", "SESSION-STATE.md",
+    "NEXT-TASKS.md", "USER-THING-TO-DO.md",
+    "docs/VISION.md", "docs/ARCHITECTURE.md", "docs/MVP-PLAN.md", "docs/ROADMAP.md",
+    "doc-of-journey/README.md", "doc-of-journey/daily/2026-10-27.md",
+    "doc-of-journey/decisions/0001..0005", "doc-of-journey/topics/errors.md", "doc-of-journey/topics/tactics.md",
+    "doc-of-journey/topics/in-progress.md",
+    "weeks/README.md", "weeks/memory-protocol.md", "weeks/WEEK-00.md", "weeks/WEEK-01.md",
+    "weeks/state/current.json", "weeks/state/sessions/2026-10-27.json"
+  ],
+  "decisions_locked": [
+    "ADR 0001 — greenfield stack lock (Node 22/TS strict/Express/better-sqlite3/Vite+React/cytoscape/chokidar/parse-diff/vitest)",
+    "ADR 0002 — deterministic-only core, zero AI keys",
+    "ADR 0003 — user-encoded Forbidden pattern convention for deterministic checks",
+    "ADR 0004 — maintenance flags keyed by condition signature, resolutions preserved",
+    "ADR 0005 — graph.json export adopted; AST code graphs remain ROADMAP"
+  ],
+  "next_step": "Learner chooses license (MIT recommended) -> agent commits LICENSE -> repo audit -> push on learner's go -> learner records <3min video -> learner submits on Devpost",
+  "user_blockers": ["1", "2", "3", "4", "5", "6"]
+}

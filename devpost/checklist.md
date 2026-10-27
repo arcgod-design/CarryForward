@@ -88,7 +88,7 @@ Build mode: fast — recorded from the learner's standing directive ("just compl
   Learner check: Edit a fixture file outside the app, hit refresh, and resolve the staleness finding.
   Commit: `feat: refresh and stale-conflict detection`
 
-- [ ] **9. Ship-ready: verified, polished, documented honestly**
+- [x] **9. Ship-ready: verified, polished, documented honestly**
   Becomes usable: `npm run demo` produces the recordable experience; README tells the truth; capability ledger (PROJECT_STATUS) matches reality; docs (VISION/ARCHITECTURE/ROADMAP/MVP-PLAN) present; repo discipline files current; full suite green.
   Why now: Everything before this is capability; this slice makes it a submission.
   PRD ref: `prd.md > States and Boundaries`, `prd.md > Non-Goals` (honesty)
