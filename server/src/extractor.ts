@@ -330,6 +330,7 @@ function parsePackageJson(content: string, rel: string, out: ExtractionResult): 
 export interface ParsedFileInfo {
   relativePath: string;
   size: number;
+  contentHash?: string | null;
 }
 
 export async function discoverFromScan(root: string, parsedFiles: ParsedFileInfo[]): Promise<ExtractionResult> {

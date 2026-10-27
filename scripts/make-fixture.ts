@@ -104,6 +104,26 @@ export async function generateFixture(target: string): Promise<{ root: string; n
 
   await write(
     target,
+    "doc-of-journey/decisions/0002-query-through-gateway.md",
+    [
+      "# Route queries through the data gateway",
+      "",
+      "Date: 2026-10-27",
+      "Status: accepted",
+      "",
+      "## Decision",
+      "",
+      "New services call the data gateway instead of repositories directly. Supersedes 0001, whose status text was never updated — this is the fixture's controlled conflict case.",
+      "",
+      "## Consequences",
+      "",
+      "ADR 0001 remains marked accepted in its source file, so Maintenance shows a conflict candidate with both sides.",
+      "",
+    ].join("\n") + "\n"
+  );
+
+  await write(
+    target,
     "package.json",
     [
       "{",

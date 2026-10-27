@@ -135,6 +135,23 @@ const MIGRATIONS: string[] = [
    );
    CREATE INDEX idx_runs_project ON review_runs(project_id);
    CREATE INDEX idx_findings_run ON findings(review_run_id);`,
+  `CREATE TABLE maintenance_flags(
+     id TEXT PRIMARY KEY,
+     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+     kind TEXT NOT NULL,
+     node_id TEXT NOT NULL,
+     node_title TEXT NOT NULL,
+     node_status TEXT NOT NULL,
+     reason TEXT NOT NULL,
+     side_a TEXT,
+     side_b TEXT,
+     signature TEXT NOT NULL,
+     status TEXT NOT NULL DEFAULT 'open',
+     resolution_note TEXT,
+     created_at TEXT NOT NULL
+   );
+   CREATE INDEX idx_flags_project ON maintenance_flags(project_id);
+   ALTER TABLE evidence ADD COLUMN content_hash TEXT;`,
 ];
 
 function migrate(database: Database.Database): void {

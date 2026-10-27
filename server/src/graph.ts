@@ -24,6 +24,7 @@ export async function buildKnowledge(projectId: string, root: string, parsedFile
   const now = new Date().toISOString();
   const extraction = await discoverFromScan(root, parsedFiles);
   const items = extraction.items;
+  const hashByPath = new Map(parsedFiles.map((f) => [f.relativePath, f.contentHash ?? null]));
 
   const nodeIds = new Map<string, string>();
   const nodes: KnowledgeNode[] = [];
@@ -66,6 +67,7 @@ export async function buildKnowledge(projectId: string, root: string, parsedFile
       classification: item.classification,
       observedAt: now,
       confidence: item.confidence,
+      contentHash: hashByPath.get(item.sourcePath) ?? null,
     });
   }
 

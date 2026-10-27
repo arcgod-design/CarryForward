@@ -138,6 +138,7 @@ interface EvidenceRow {
   classification: string;
   observed_at: string;
   confidence: string;
+  content_hash: string | null;
 }
 
 interface EdgeRow {
@@ -180,6 +181,7 @@ function rowToEvidence(row: EvidenceRow): Evidence {
     classification: row.classification as Evidence["classification"],
     observedAt: row.observed_at,
     confidence: row.confidence as Evidence["confidence"],
+    contentHash: row.content_hash,
   };
 }
 
@@ -202,7 +204,7 @@ export function replaceDiscoveredKnowledge(projectId: string, knowledge: BuiltKn
     "INSERT OR IGNORE INTO nodes (id, project_id, type, title, content, status, origin, approved_by, approved_at, supersedes, user_touched, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)"
   );
   const insertEvidence = db.prepare(
-    "INSERT OR IGNORE INTO evidence (id, project_id, node_id, source_path, start_line, end_line, excerpt, classification, observed_at, confidence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT OR IGNORE INTO evidence (id, project_id, node_id, source_path, start_line, end_line, excerpt, classification, observed_at, confidence, content_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   );
   const insertEdge = db.prepare(
     "INSERT OR REPLACE INTO edges (id, project_id, source_node, target_node, relation, status, evidence_id, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
@@ -221,7 +223,7 @@ export function replaceDiscoveredKnowledge(projectId: string, knowledge: BuiltKn
       insertNode.run(n.id, n.projectId, n.type, n.title, n.content, n.status, n.origin, n.approvedBy, n.approvedAt, n.supersedes, n.createdAt, n.updatedAt);
     }
     for (const e of knowledge.evidence) {
-      insertEvidence.run(e.id, e.projectId, e.nodeId, e.sourcePath, e.startLine, e.endLine, e.excerpt, e.classification, e.observedAt, e.confidence);
+      insertEvidence.run(e.id, e.projectId, e.nodeId, e.sourcePath, e.startLine, e.endLine, e.excerpt, e.classification, e.observedAt, e.confidence, e.contentHash ?? null);
     }
     for (const e of knowledge.edges) {
       insertEdge.run(e.id, e.projectId, e.sourceNodeId, e.targetNodeId, e.relation, e.status, e.evidenceId, e.origin);
@@ -531,5 +533,95 @@ export function updateFindingDisposition(projectId: string, findingId: string, d
   const result = getDb()
     .prepare("UPDATE findings SET disposition = ? WHERE id = ? AND project_id = ?")
     .run(disposition, findingId, projectId);
+  return result.changes > 0;
+}
+
+interface FlagRow {
+  id: string;
+  project_id: string;
+  kind: string;
+  node_id: string;
+  node_title: string;
+  node_status: string;
+  reason: string;
+  side_a: string | null;
+  side_b: string | null;
+  signature: string;
+  status: string;
+  resolution_note: string | null;
+  created_at: string;
+}
+
+function rowToFlag(row: FlagRow): FlagRecord {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    kind: row.kind as FlagRecord["kind"],
+    nodeId: row.node_id,
+    nodeTitle: row.node_title,
+    nodeStatus: row.node_status,
+    reason: row.reason,
+    sideA: row.side_a ? JSON.parse(row.side_a) : null,
+    sideB: row.side_b ? JSON.parse(row.side_b) : null,
+    signature: row.signature,
+    status: row.status as FlagRecord["status"],
+    resolutionNote: row.resolution_note,
+    createdAt: row.created_at,
+  };
+}
+
+export interface FlagRecord {
+  id: string;
+  projectId: string;
+  kind: "stale" | "conflict";
+  nodeId: string;
+  nodeTitle: string;
+  nodeStatus: string;
+  reason: string;
+  sideA: { label: string; detail: string } | null;
+  sideB: { label: string; detail: string } | null;
+  signature: string;
+  status: "open" | "resolved" | "dismissed";
+  resolutionNote: string | null;
+  createdAt: string;
+}
+
+export function upsertMaintenanceFlag(projectId: string, flag: Omit<FlagRecord, "id" | "projectId" | "status" | "resolutionNote" | "createdAt">, now: string): FlagRecord {
+  const db = getDb();
+  const existing = db
+    .prepare("SELECT * FROM maintenance_flags WHERE project_id = ? AND signature = ?")
+    .get(projectId, flag.signature) as FlagRow | undefined;
+  if (existing) {
+    const updated = db
+      .prepare("UPDATE maintenance_flags SET node_title = ?, node_status = ?, reason = ?, side_a = ?, side_b = ?, created_at = ? WHERE id = ?")
+      .run(flag.nodeTitle, flag.nodeStatus, flag.reason, flag.sideA ? JSON.stringify(flag.sideA) : null, flag.sideB ? JSON.stringify(flag.sideB) : null, now, existing.id);
+    if (updated.changes > 0) return rowToFlag({ ...existing, node_title: flag.nodeTitle, node_status: flag.nodeStatus, reason: flag.reason, created_at: now } as FlagRow);
+    return rowToFlag(existing);
+  }
+  const record: FlagRecord = {
+    id: randomUUID(),
+    projectId,
+    ...flag,
+    status: "open",
+    resolutionNote: null,
+    createdAt: now,
+  };
+  db.prepare(
+    "INSERT INTO maintenance_flags (id, project_id, kind, node_id, node_title, node_status, reason, side_a, side_b, signature, status, resolution_note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run(record.id, projectId, record.kind, record.nodeId, record.nodeTitle, record.nodeStatus, record.reason, record.sideA ? JSON.stringify(record.sideA) : null, record.sideB ? JSON.stringify(record.sideB) : null, record.signature, record.status, record.resolutionNote, record.createdAt);
+  return record;
+}
+
+export function getMaintenanceFlags(projectId: string): FlagRecord[] {
+  const rows = getDb()
+    .prepare("SELECT * FROM maintenance_flags WHERE project_id = ? ORDER BY created_at DESC")
+    .all(projectId) as FlagRow[];
+  return rows.map(rowToFlag);
+}
+
+export function resolveMaintenanceFlag(projectId: string, flagId: string, status: "resolved" | "dismissed", note: string | null): boolean {
+  const result = getDb()
+    .prepare("UPDATE maintenance_flags SET status = ?, resolution_note = ? WHERE id = ? AND project_id = ? AND status = 'open'")
+    .run(status, note, flagId, projectId);
   return result.changes > 0;
 }

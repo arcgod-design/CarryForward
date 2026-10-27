@@ -71,6 +71,7 @@ export interface Evidence {
   classification: EvidenceClassification;
   observedAt: string;
   confidence: "high" | "medium" | "low";
+  contentHash?: string | null;
 }
 
 export interface KnowledgeNode {
@@ -204,4 +205,32 @@ export interface CheckResponse {
   findings: Finding[];
   files: DiffFile[];
   applicableRules: ApplicableRule[];
+}
+
+export type MaintenanceKind = "stale" | "conflict";
+
+export type MaintenanceFlagStatus = "open" | "resolved" | "dismissed";
+
+export interface MaintenanceFlag {
+  id: string;
+  projectId: string;
+  kind: MaintenanceKind;
+  nodeId: string;
+  nodeTitle: string;
+  nodeStatus: string;
+  reason: string;
+  sideA: { label: string; detail: string } | null;
+  sideB: { label: string; detail: string } | null;
+  signature: string;
+  status: MaintenanceFlagStatus;
+  resolutionNote: string | null;
+  createdAt: string;
+}
+
+export interface RefreshResponse {
+  scannedAt: string;
+  changedFiles: string[];
+  discovery: DiscoverySummary;
+  flags: MaintenanceFlag[];
+  note: string;
 }

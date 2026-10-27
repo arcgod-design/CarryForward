@@ -8,8 +8,10 @@ import { reviewNode, createUserPrinciple, type ReviewAction } from "./approvals"
 import { generatePack } from "./pack";
 import { captureGitDiff, parseDiffText } from "./diff";
 import { runChecks } from "./checker";
+import { refreshProject } from "./maintenance";
+import { startWatch, stopWatch, watchStatus } from "./watcher";
 import * as store from "./store";
-import type { CheckResponse, DiffSource, ScanResponse, NodeType, NodeWithEvidence, ReviewRun, Finding } from "../../shared/types";
+import type { CheckResponse, DiffSource, ScanResponse, NodeType, NodeWithEvidence, ReviewRun, Finding, MaintenanceFlag } from "../../shared/types";
 
 const REVIEW_ACTIONS: ReviewAction[] = ["approve", "reject", "uncertain", "deprecate"];
 const NODE_TYPES: NodeType[] = ["principle", "decision", "component", "convention", "procedure", "dependency", "verification", "status-question"];
@@ -212,6 +214,67 @@ api.post("/projects/:id/findings/:findingId/disposition", (req, res) => {
   const ok = store.updateFindingDisposition(project.id, req.params.findingId, disposition);
   if (!ok) return res.status(404).json({ error: "Finding not found." });
   res.json({ ok: true });
+});
+
+api.post("/projects/:id/refresh", async (req, res) => {
+  try {
+    const project = store.getProject(req.params.id);
+    if (!project) return res.status(404).json({ error: "Project not found." });
+    const result = await refreshProject(project);
+    store.updateScanTime(project.id);
+    res.json(result);
+  } catch (err) {
+    console.error("refresh route failed:", err);
+    res.status(500).json({ error: `Refresh failed: ${(err as Error).message}` });
+  }
+});
+
+api.get("/projects/:id/maintenance", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const flags: MaintenanceFlag[] = store.getMaintenanceFlags(project.id).map((f) => ({
+    id: f.id,
+    projectId: f.projectId,
+    kind: f.kind,
+    nodeId: f.nodeId,
+    nodeTitle: f.nodeTitle,
+    nodeStatus: f.nodeStatus,
+    reason: f.reason,
+    sideA: f.sideA,
+    sideB: f.sideB,
+    signature: f.signature,
+    status: f.status,
+    resolutionNote: f.resolutionNote,
+    createdAt: f.createdAt,
+  }));
+  res.json({ flags, watch: watchStatus(project.id), lastScanAt: project.lastScanAt });
+});
+
+api.post("/projects/:id/maintenance/:flagId/resolve", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const status = req.body?.status;
+  if (!["resolved", "dismissed"].includes(status)) {
+    return res.status(400).json({ error: "status must be resolved or dismissed." });
+  }
+  const note = typeof req.body?.note === "string" ? req.body.note : null;
+  const ok = store.resolveMaintenanceFlag(project.id, req.params.flagId, status, note);
+  if (!ok) return res.status(404).json({ error: "Open flag not found." });
+  res.json({ ok: true });
+});
+
+api.post("/projects/:id/watch/start", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const result = startWatch(project);
+  res.json(result);
+});
+
+api.post("/projects/:id/watch/stop", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  stopWatch(project.id);
+  res.json({ stopped: true });
 });
 
 api.get("/projects/:id/graph/export", (req, res) => {

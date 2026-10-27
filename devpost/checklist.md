@@ -78,7 +78,7 @@ Build mode: fast — recorded from the learner's standing directive ("just compl
   Learner check: Run the fixture, complete the whole loop in the browser yourself, and say where it confused you.
   Commit: `feat: P0 loop acceptance with synthetic fixture`
 
-- [ ] **8. Maintenance: refresh updates records; stale and conflicting knowledge surfaces honestly**
+- [x] **8. Maintenance: refresh updates records; stale and conflicting knowledge surfaces honestly**
   Becomes usable: Maintenance view: manual refresh (primary) + opt-in watcher; changed/deleted files re-parse and affected evidence flags `possibly stale` without touching approvals; conflict candidates (missing references, dated-status vs newer evidence, supersession chains) show both sources side-by-side and resolve only by user action.
   Why now: Master prompt §4 sequencing: only after the P0 gate passes. Watcher on OneDrive is best-effort; manual refresh is the guaranteed path.
   PRD ref: `prd.md > Maintenance (built strictly after the core loop passes)`
