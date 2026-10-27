@@ -156,6 +156,18 @@ interface ComponentEntry {
   evidence: Evidence;
 }
 
+const GENERATED_DIRS = new Set([
+  "graphify-out",
+  "coverage",
+  "__pycache__",
+  "venv",
+  "dist",
+  "build",
+  "out",
+  "tmp",
+  "temp",
+]);
+
 function buildComponents(projectId: string, root: string, parsedFiles: ParsedFileInfo[], now: string): ComponentEntry[] {
   const byDir = new Map<string, ParsedFileInfo[]>();
   for (const f of parsedFiles) {
@@ -168,6 +180,8 @@ function buildComponents(projectId: string, root: string, parsedFiles: ParsedFil
   const entries: ComponentEntry[] = [];
   for (const [name, files] of [...byDir.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(0, 25)) {
     const codeCount = files.filter((f) => isCodePath(f.relativePath)).length;
+    if (codeCount === 0) continue;
+    if (name.startsWith(".") || GENERATED_DIRS.has(name)) continue;
     const exemplar = (codeCount > 0 ? files.find((f) => isCodePath(f.relativePath)) : files[0]) as ParsedFileInfo;
     const id = sha(projectId, "component", name);
     let firstLine = `(file in ${name}/)`;

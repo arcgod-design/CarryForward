@@ -84,4 +84,23 @@ describe("graph edges", () => {
     const step = edges.find((e) => e.sourceNodeId === ruleId && e.relation === "governs");
     expect(step?.targetNodeId).toBe(compId);
   });
+
+  it("excludes dot-directories and generated dirs from components", async () => {
+    fs.mkdirSync(path.join(tmp, ".vscode"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "graphify-out"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "src"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, ".vscode/settings.json"), "{}\n");
+    fs.writeFileSync(path.join(tmp, "graphify-out/graph.json"), "{}\n");
+    fs.writeFileSync(path.join(tmp, "src/app.ts"), "export const x = 1;\n");
+    const knowledge = await buildKnowledge(projectId, tmp, [
+      { relativePath: ".vscode/settings.json", size: 3 },
+      { relativePath: "graphify-out/graph.json", size: 3 },
+      { relativePath: "src/app.ts", size: 20 },
+    ]);
+    store.replaceDiscoveredKnowledge(projectId, knowledge);
+    const titles = knowledge.nodes.filter((n) => n.type === "component").map((n) => n.title);
+    expect(titles).not.toContain("Component: .vscode/");
+    expect(titles).not.toContain("Component: graphify-out/");
+    expect(titles).toContain("Component: src/");
+  });
 });

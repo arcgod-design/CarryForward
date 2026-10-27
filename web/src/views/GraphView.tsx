@@ -14,8 +14,19 @@ const TYPE_COLORS: Record<string, string> = {
   "status-question": "#f0883e",
 };
 
+const TYPE_LEGEND: { type: string; color: string }[] = [
+  { type: "principle", color: TYPE_COLORS.principle },
+  { type: "decision", color: TYPE_COLORS.decision },
+  { type: "component", color: TYPE_COLORS.component },
+  { type: "convention", color: TYPE_COLORS.convention },
+  { type: "procedure", color: TYPE_COLORS.procedure },
+  { type: "verification", color: TYPE_COLORS.verification },
+  { type: "status-question", color: TYPE_COLORS["status-question"] },
+];
+
 const ALL_TYPES: NodeType[] = ["principle", "decision", "component", "convention", "procedure", "dependency", "verification", "status-question"];
 const ALL_RELATIONS: EdgeRelation[] = ["governs", "implemented_by", "depends_on", "verified_by", "supersedes", "contradicts", "related_to"];
+const LABEL_ZOOM_THRESHOLD = 1.15;
 
 interface GraphData {
   nodes: NodeWithEvidence[];
@@ -29,12 +40,17 @@ export function GraphView({ project }: { project: Project | null }) {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [focusMode, setFocusMode] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [linkMode, setLinkMode] = useState(false);
   const [linkRelation, setLinkRelation] = useState<EdgeRelation>("related_to");
   const [linkTarget, setLinkTarget] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const cyRef = useRef<Core | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const selectedRef = useRef<string | null>(null);
+  const applyLabelsRef = useRef<(() => void) | null>(null);
+
+  selectedRef.current = selectedId;
 
   function load(p: Project | null) {
     if (!p) return;
@@ -52,6 +68,16 @@ export function GraphView({ project }: { project: Project | null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);
 
+  const connectedIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!data) return set;
+    for (const e of data.edges) {
+      set.add(e.sourceNodeId);
+      set.add(e.targetNodeId);
+    }
+    return set;
+  }, [data]);
+
   const neighbors = useMemo(() => {
     if (!data || !selectedId) return new Set<string>();
     const set = new Set<string>([selectedId]);
@@ -65,12 +91,14 @@ export function GraphView({ project }: { project: Project | null }) {
   const visibleNodes = useMemo(() => {
     if (!data) return [];
     return data.nodes.filter((n) => {
+      if (!showAll && n.node.type === "dependency") return false;
+      if (!showAll && !connectedIds.has(n.node.id)) return false;
       if (typeFilter !== "all" && n.node.type !== typeFilter) return false;
       if (query && !n.node.title.toLowerCase().includes(query.toLowerCase())) return false;
       if (focusMode && selectedId && !neighbors.has(n.node.id)) return false;
       return true;
     });
-  }, [data, typeFilter, query, focusMode, selectedId, neighbors]);
+  }, [data, typeFilter, query, focusMode, selectedId, neighbors, showAll, connectedIds]);
 
   useEffect(() => {
     if (!containerRef.current || !data) return;
@@ -79,7 +107,7 @@ export function GraphView({ project }: { project: Project | null }) {
       ...visibleNodes.map((n) => ({
         data: {
           id: n.node.id,
-          label: n.node.title.length > 26 ? n.node.title.slice(0, 24) + "…" : n.node.title,
+          label: n.node.title.length > 30 ? n.node.title.slice(0, 28) + "…" : n.node.title,
           color: TYPE_COLORS[n.node.type] ?? "#8b95a5",
           approved: n.node.status === "user-approved",
           rejected: n.node.status === "rejected",
@@ -98,10 +126,26 @@ export function GraphView({ project }: { project: Project | null }) {
         })),
     ];
 
+    const applyLabels = () => {
+      const cy = cyRef.current;
+      if (!cy) return;
+      const z = cy.zoom();
+      const selected = selectedRef.current;
+      cy.batch(() => {
+        cy.nodes().forEach((n) => {
+          const show =
+            z >= LABEL_ZOOM_THRESHOLD || n.data("approved") === true || n.id() === selected || n.hasClass("hoverLabel");
+          n.toggleClass("hideLabel", !show);
+        });
+      });
+    };
+    applyLabelsRef.current = applyLabels;
+
     if (!cyRef.current) {
       const cy = cytoscape({
         container: containerRef.current,
         elements,
+        wheelSensitivity: 0.25,
         style: [
           {
             selector: "node",
@@ -118,7 +162,21 @@ export function GraphView({ project }: { project: Project | null }) {
               "text-valign": "bottom",
               "text-margin-y": 6,
               "text-wrap": "ellipsis",
-              "text-max-width": "120px",
+              "text-max-width": "140px",
+              "transition-property": "text-opacity",
+              "transition-duration": 150,
+            },
+          },
+          {
+            selector: "node.hideLabel",
+            style: {
+              "text-opacity": 0,
+            },
+          },
+          {
+            selector: "node.hoverLabel",
+            style: {
+              "text-opacity": 1,
             },
           },
           {
@@ -159,7 +217,15 @@ export function GraphView({ project }: { project: Project | null }) {
             },
           },
         ],
-        layout: { name: "cose", animate: false, padding: 24 } as never,
+        layout: {
+          name: "cose",
+          animate: false,
+          padding: 30,
+          nodeDimensionsIncludeLabels: true,
+          componentSpacing: 90,
+          nodeRepulsion: 9000,
+          idealEdgeLength: 90,
+        } as never,
       });
       cy.on("tap", "node", (ev: EventObject) => {
         setSelectedId(ev.target.id());
@@ -167,14 +233,34 @@ export function GraphView({ project }: { project: Project | null }) {
       cy.on("tap", (ev: EventObject) => {
         if (ev.target === cy) setSelectedId(null);
       });
+      cy.on("mouseover", "node", (ev: EventObject) => {
+        ev.target.addClass("hoverLabel");
+      });
+      cy.on("mouseout", "node", (ev: EventObject) => {
+        ev.target.removeClass("hoverLabel");
+      });
+      cy.on("zoom", () => applyLabelsRef.current?.());
       cyRef.current = cy;
     } else {
       const cy = cyRef.current;
       cy.elements().remove();
       cy.add(elements);
-      cy.layout({ name: "cose", animate: false, padding: 24 } as never).run();
+      cy.layout({
+        name: "cose",
+        animate: false,
+        padding: 30,
+        nodeDimensionsIncludeLabels: true,
+        componentSpacing: 90,
+        nodeRepulsion: 9000,
+        idealEdgeLength: 90,
+      } as never).run();
     }
+    applyLabels();
   }, [data, visibleNodes]);
+
+  useEffect(() => {
+    applyLabelsRef.current?.();
+  }, [selectedId]);
 
   useEffect(() => {
     return () => {
@@ -292,7 +378,18 @@ export function GraphView({ project }: { project: Project | null }) {
               />
               Focus on selected node + neighbors
             </label>
-            <p className="dim">{visibleNodes.length} nodes shown.</p>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={showAll}
+                onChange={(e) => setShowAll(e.target.checked)}
+              />
+              Show all nodes (incl. dependencies + unconnected)
+            </label>
+            <p className="dim">
+              Canvas: {visibleNodes.length} shown (dependencies and unconnected nodes hidden by default). Zoom in to
+              reveal labels; hover a node to show its label.
+            </p>
             <button className="btn small" onClick={() => window.open(`/api/projects/${project.id}/graph/export`, "_blank")}>
               Export graph.json
             </button>
@@ -313,6 +410,23 @@ export function GraphView({ project }: { project: Project | null }) {
 
           <div className="graph-canvas-wrap">
             <div ref={containerRef} className="graph-canvas" role="img" aria-label="Knowledge graph canvas"></div>
+            <div className="graph-legend" aria-label="Graph legend">
+              {TYPE_LEGEND.map((l) => (
+                <span key={l.type} className="legend-item">
+                  <span className="dot" style={{ background: l.color }} aria-hidden="true"></span>
+                  {l.type}
+                </span>
+              ))}
+              <span className="legend-item"><span className="legend-line" aria-hidden="true"></span> evidence link</span>
+              <span className="legend-item"><span className="legend-line dashed" aria-hidden="true"></span> your link</span>
+              <span className="legend-item"><span className="dot approved-dot" aria-hidden="true"></span> approved</span>
+            </div>
+            {visibleNodes.length === 0 && (
+              <div className="graph-empty-hint">
+                Nothing on the canvas: every node is a dependency or currently unconnected. The full set lives in the
+                list — tick “Show all nodes” to render everything.
+              </div>
+            )}
           </div>
 
           {selected && (
