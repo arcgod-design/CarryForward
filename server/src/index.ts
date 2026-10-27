@@ -9,8 +9,12 @@ export function buildApp() {
   app.use(express.json({ limit: "2mb" }));
   app.use("/api", api);
 
-  const webDist = path.join(__dirname, "..", "..", "web", "dist");
-  if (fs.existsSync(webDist)) {
+  const webDistCandidates = [
+    path.join(__dirname, "..", "..", "..", "web", "dist"),
+    path.join(__dirname, "..", "..", "web", "dist"),
+  ];
+  const webDist = webDistCandidates.find((p) => fs.existsSync(path.join(p, "index.html")));
+  if (webDist) {
     app.use(express.static(webDist));
     app.get("*", (req, res) => {
       if (req.path.startsWith("/api/")) return res.status(404).json({ error: "Not found" });
