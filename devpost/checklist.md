@@ -68,7 +68,7 @@ Build mode: fast — recorded from the learner's standing directive ("just compl
   Learner check: Stage the fixture's violating change, run Change Check, and read the finding's evidence on both sides.
   Commit: `feat: evidence-backed change check with findings`
 
-- [ ] **7. P0 gate: the whole loop passes end to end on the synthetic fixture**
+- [x] **7. P0 gate: the whole loop passes end to end on the synthetic fixture**
   Becomes usable: `npm run fixture` creates the labeled synthetic demo repo (approved-principle fixture, unapproved candidate, pending violating diff); the full loop runs in one continuous pass with all seven views honest — empty states, error states included. The P0 acceptance gate from the master prompt.
   Why now: Master prompt §4 forbids maintenance work before this gate passes; it's also the demo's exact path.
   PRD ref: `prd.md > The Core Journey`, `prd.md > What We're Building`
