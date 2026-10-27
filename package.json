@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Local-first project maintainer: evidence-backed knowledge graph, agent instruction packs, and rule-aware change checks for one repository.",
-  "license": "TBD",
+  "license": "MIT",
   "type": "commonjs",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:web\"",
