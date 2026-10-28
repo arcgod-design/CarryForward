@@ -7,6 +7,8 @@ import { buildKnowledge } from "./graph";
 import { reviewNode, createUserPrinciple, type ReviewAction } from "./approvals";
 import { generatePack } from "./pack";
 import { buildGraphReportHtml } from "./report";
+import { buildArchitectureHtml } from "./diagram";
+import { graphifyArtifactPath, runGraphify } from "./tools";
 import { captureGitDiff, parseDiffText, currentCommit } from "./diff";
 import { runChecks } from "./checker";
 import { refreshProject } from "./maintenance";
@@ -276,6 +278,41 @@ api.post("/projects/:id/watch/stop", (req, res) => {
   if (!project) return res.status(404).json({ error: "Project not found." });
   stopWatch(project.id);
   res.json({ stopped: true });
+});
+
+api.get("/projects/:id/codegraph", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const artifact = graphifyArtifactPath(project);
+  if (!artifact) {
+    return res.status(404).json({
+      error: "No graphify output found in this repository (expected graphify-out/graph.html).",
+      howTo: [
+        "uv tool install graphifyy   # graphify CLI (open source, Apache-2.0/MIT)",
+        "graphify install            # register the skill (optional)",
+        "Then press Generate here — CarryForward runs 'graphify .' inside the repository.",
+      ],
+    });
+  }
+  res.type("html").send(fsSync.readFileSync(artifact));
+});
+
+api.post("/projects/:id/codegraph/generate", async (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const result = await runGraphify(project);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  res.json({ ok: true, note: "graphify regenerated graphify-out/graph.html. Attributed: powered by graphify (open source, Apache-2.0/MIT)." });
+});
+
+api.get("/projects/:id/diagram/architecture", (req, res) => {
+  const project = store.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  const nodes = store.getNodesWithEvidence(project.id);
+  if (nodes.length === 0) return res.status(409).json({ error: "Scan the project first — there is nothing to diagram yet." });
+  const html = buildArchitectureHtml(project, nodes, store.getEdges(project.id), store.getSourceFiles(project.id));
+  res.setHeader("Content-Disposition", `inline; filename="carryforward-architecture-${project.displayName}.html"`);
+  res.type("html").send(html);
 });
 
 api.get("/projects/:id/graph/report", (req, res) => {

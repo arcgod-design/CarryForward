@@ -8,21 +8,57 @@
     "live HTTP — aws project refresh under raised caps: 100 previously truncated files surfaced; components 13 -> 5 (.archon/.kiro/.pytest_cache/.tools/.vscode/graphify-out excluded as noise or non-code dirs)",
     "live HTTP — default canvas node count 330 -> 8 (curated: dependencies + unconnected behind toggle)",
     "live HTTP — commit pin recorded: projects.last_commit = a5ea5a156f2c58a23e59167721227c4fabdaf643",
-    "live HTTP — GET /graph/report produced a 3.2 MB self-contained HTML; embedded JSON payload parses, contains nodes/edges/project displayName and the commit pin (verified via [System.IO.File]::ReadAllText UTF8)"
+    "live HTTP — GET /graph/report produced a 3.2 MB self-contained HTML; embedded JSON payload parses, contains nodes/edges/project displayName and the commit pin (verified via [System.IO.File]::ReadAllText UTF8)",
+    "live HTTP - Code Graph section: served genuine graphify artifact (1.5 MB, HTTP 200) from the aws repo; generate endpoint wired to installed graphify CLI with honest failure instructions",
+    "live HTTP - Diagrams section: architecture HTML HTTP 200 with component boxes, attribution, escaped content (hostile-content test); SRC chips render only where decision records exist",
+    "npx vitest run - 84 passed (84) across 13 test files after graphify/archify integration (ADR 0007)"
   ],
   "files_touched": [
-    "server/src/scanner.ts", "server/src/extractor.ts", "server/src/graph.ts", "server/src/graph.test.ts",
-    "server/src/diff.ts", "server/src/routes.ts", "server/src/report.ts", "server/src/report.test.ts",
-    "server/src/store.ts", "server/src/db.ts", "server/src/pack.ts",
-    "shared/types.ts", "web/src/views/GraphView.tsx", "web/src/styles.css",
-    "PROJECT-CORE.md", "PROJECT_STATUS.md", "README.md", "SESSION-STATE.md", "NEXT-TASKS.md",
-    "doc-of-journey/decisions/0006-graph-experience-upgrades.md", "doc-of-journey/topics/errors.md",
-    "doc-of-journey/daily/2026-10-27.md", "weeks/WEEK-02.md", "weeks/WEEK-00.md",
-    "weeks/state/current.json", "weeks/state/sessions/2026-10-27-2.json", "devpost/checklist.md"
+    "server/src/scanner.ts",
+    "server/src/extractor.ts",
+    "server/src/graph.ts",
+    "server/src/graph.test.ts",
+    "server/src/diff.ts",
+    "server/src/routes.ts",
+    "server/src/report.ts",
+    "server/src/report.test.ts",
+    "server/src/store.ts",
+    "server/src/db.ts",
+    "server/src/pack.ts",
+    "shared/types.ts",
+    "web/src/views/GraphView.tsx",
+    "web/src/styles.css",
+    "PROJECT-CORE.md",
+    "PROJECT_STATUS.md",
+    "README.md",
+    "SESSION-STATE.md",
+    "NEXT-TASKS.md",
+    "doc-of-journey/decisions/0006-graph-experience-upgrades.md",
+    "doc-of-journey/topics/errors.md",
+    "doc-of-journey/daily/2026-10-27.md",
+    "weeks/WEEK-02.md",
+    "weeks/WEEK-00.md",
+    "weeks/state/current.json",
+    "weeks/state/sessions/2026-10-27-2.json",
+    "devpost/checklist.md",
+    "server/src/tools.ts",
+    "server/src/tools.test.ts",
+    "server/src/diagram.ts",
+    "web/src/views/CodeGraphView.tsx",
+    "web/src/views/DiagramsView.tsx",
+    "web/src/App.tsx",
+    "doc-of-journey/decisions/0007-open-source-integration-policy.md"
   ],
   "decisions_locked": [
-    "ADR 0006 — caps raised with floors kept (Graphify's 5,000-node aggregation cited); file drill-down as UI overlay over stored records (not knowledge nodes); standalone graph.html report built natively (archify-inspired, nothing copied); commit pinning per scan; pack knowledge-structure section"
+    "ADR 0006 — caps raised with floors kept (Graphify's 5,000-node aggregation cited); file drill-down as UI overlay over stored records (not knowledge nodes); standalone graph.html report built natively (archify-inspired, nothing copied); commit pinning per scan; pack knowledge-structure section",
+    "ADR 0007 - open-source integration policy: use real tools with open attribution, never conceal provenance"
   ],
-  "next_step": "Learner hard-refreshes http://localhost:8787, expands a folder node on the aws project, downloads graph.html, confirms the demo passes, records the video, and submits on Devpost",
-  "user_blockers": ["1", "3", "4", "6", "7"]
+  "next_step": "Learner opens Code Graph + Diagrams sections, confirms demo passes, records video, submits on Devpost",
+  "user_blockers": [
+    "1",
+    "3",
+    "4",
+    "6",
+    "7"
+  ]
 }

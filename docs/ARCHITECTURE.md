@@ -21,6 +21,8 @@ Express app (server/src/index.ts → routes.ts)
    ├── maintenance.ts  refresh + stale/conflict detection
    ├── watcher.ts      chokidar opt-in watcher (best-effort)
    ├── report.ts       standalone graph.html generator (archify-inspired, built natively)
+   ├── tools.ts        graphify CLI integration (runs installed tool, serves artifact unmodified)
+   ├── diagram.ts      architecture diagram generator (archify-inspired, native)
    ├── secrets.ts      secret patterns + redaction
    ├── store.ts        data-access boundary (all SQL lives here)
    └── db.ts           better-sqlite3 + sequential migrations (user_version)

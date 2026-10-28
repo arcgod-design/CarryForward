@@ -8,10 +8,11 @@ Ordered task board, active week: WEEK-02 (graph experience upgrades + ship). Upd
 4. [x] Final repo audit — 93 tracked files, zero real secrets, learner profile untracked.
 5. [x] Public GitHub push — https://github.com/arcgod-design/CarryForward (public, verified).
 6. [x] Graph experience round (ADR 0006): raised caps, component-noise fix, curated canvas, zoom/hover labels, legend, expandable folder nodes, graph.html report, commit pinning, pack knowledge-structure section. 79/79 tests.
-7. [ ] Learner re-checks the upgraded graph (hard-refresh, expand a folder, download graph.html) → declares demo passed.
-8. [ ] Demo video — learner records; shot list below.
-9. [ ] Devpost submission (learner-only): repo URL, description, video link, personal answers.
-10. [ ] 5-build wrap-up box: final review confirmation (learner).
+7. [x] Open-source integration round (ADR 0007): **Code Graph** section (graphify CLI + unmodified artifact, attributed), **Diagrams** section (native architecture HTML with SRC chips, archify-inspired), hostile-content escaping, safety policy for future clones/installs. 84/84 tests.
+8. [ ] Learner re-checks the upgraded graph (hard-refresh, expand a folder, download graph.html, open Code Graph + Diagrams)  declares demo passed.
+9. [ ] Demo video - learner records; shot list below.
+10. [ ] Devpost submission (learner-only): repo URL, description, video link, personal answers.
+11. [ ] 5-build wrap-up box: final review confirmation (learner).
 
 ## Demo video shot list (~2:40)
 

@@ -22,6 +22,12 @@ Capability truth ledger. Labels: `WORKING` (observed command + result), `PROTO` 
 - **WORKING — Commit pinning** (`server/src/diff.ts currentCommit()`): every scan/refresh records `git rev-parse HEAD` on the project; pack and report state which commit evidence was captured at; null (honest) for non-git folders.
   Evidence: commit-pinning test; live: aws project pinned to `a5ea5a156f2c…` (2026-10-27).
 
+- **WORKING — Code Graph section (graphify integration)** (`server/src/tools.ts`, `web/src/views/CodeGraphView.tsx`): drives the installed graphify CLI inside the opened repository (10-minute timeout, honest failure + install instructions) and serves `graphify-out/graph.html` unmodified, with in-product attribution (graphify, Apache-2.0/MIT).
+  Evidence: tools tests; live: learner's aws repo served its genuine 1.5 MB graphify graph at HTTP 200 (2026-10-27).
+
+- **WORKING — Diagrams section (architecture HTML)** (`server/src/diagram.ts`, `web/src/views/DiagramsView.tsx`): archify-inspired architecture diagram built natively from the evidence store — component boxes with file/governing-rule counts, approved principles, decisions with `SRC path:line` chips, procedures, relationships, commit pin; fully escaped (hostile-content test); self-contained HTML, no third-party code vendored.
+  Evidence: tools tests (5/5 incl. escape test); live: learner's aws repo generated the diagram at HTTP 200 with components + attribution (2026-10-27). SRC chips render only for repositories with decision records — the aws repo has none, shown honestly by absence.
+
 - **WORKING — Instruction pack** (`server/src/pack.ts`): deterministic (same graph state → identical bytes), approved-only binding sections, candidate counts disclosed, secret exclusion, fingerprint, **"Repository knowledge structure" section** (discovered instruction/core/status/decision/topic files grouped by role with guidance), preview/copy/download, export with 409 overwrite guard + alternative filename.
   Evidence: pack tests (determinism, structure section, commit pin line, role grouping); live check: overwrite blocked HTTP 409 (correct), alternative file written, original AGENTS.md untouched (2026-10-27).
 

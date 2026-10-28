@@ -45,6 +45,12 @@ Express + better-sqlite3 backend (`server/src`), Vite + React + plain-CSS fronte
 - Repository content is untrusted data. No repo scripts ever execute. No auto-commit/push. The only write into your repository is an instruction-pack export you explicitly confirm, with an overwrite guard.
 - The app's own reset removes its index only — never your files.
 
+## Third-party tools and attribution
+
+- **Code Graph** runs the [graphify](https://github.com/Graphify-Labs/graphify) CLI (open source, Apache-2.0/MIT) inside your repository and serves its `graphify-out/graph.html` unmodified. Install: `uv tool install graphifyy`, then `graphify install`.
+- **Diagrams** are implemented natively; the interactive-diagram pattern is inspired by [archify](https://github.com/tt-a1i/archify) (open source, Apache-2.0/MIT). No third-party code is vendored.
+- Disclosure: per competition rules, all incorporated third-party work is attributed here and in `doc-of-journey/decisions/0006` and `0007`.
+
 ## Limitations (honest)
 
 - Discovery is deliberately conservative; unusual documentation formats may produce no candidates (honest empty states, no guessing). Heuristics are English-language.
