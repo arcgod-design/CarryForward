@@ -3,6 +3,7 @@ import path from "path";
 import { scanRepository } from "./scanner";
 import { buildKnowledge } from "./graph";
 import { currentCommit } from "./diff";
+import { graphifyArtifactPath, runGraphify } from "./tools";
 import * as store from "./store";
 import type { MaintenanceFlag, NodeWithEvidence, Project, RefreshResponse } from "../../shared/types";
 
@@ -121,12 +122,23 @@ export async function refreshProject(project: Project): Promise<RefreshResponse>
 
   const openFlags = store.getMaintenanceFlags(project.id);
 
+  const graphifyNote = (() => {
+    if (!graphifyArtifactPath(project)) return "";
+    void runGraphify(project)
+      .then((r) => {
+        if (!r.ok) console.warn(`background graphify regeneration failed for ${project.displayName}: ${r.error}`);
+      })
+      .catch((err) => console.warn(`background graphify regeneration crashed: ${(err as Error).message}`));
+    return " graphify regeneration started in the background (Code Graph will show the new artifact when it finishes).";
+  })();
+
   return {
     scannedAt: now,
     changedFiles: changedFiles.slice(0, 100),
     discovery: { total: knowledge.nodes.length, byType: {} },
     flags: openFlags,
     note:
-      "Refresh rescanned the repository and updated affected records. User-approved principles were preserved; stale candidates are flagged, never rewritten.",
+      "Refresh rescanned the repository and updated affected records. User-approved principles were preserved; stale candidates are flagged, never rewritten." +
+      graphifyNote,
   };
 }
