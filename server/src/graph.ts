@@ -29,7 +29,6 @@ export async function buildKnowledge(projectId: string, root: string, parsedFile
   const nodeIds = new Map<string, string>();
   const nodes: KnowledgeNode[] = [];
   const evidence: Evidence[] = [];
-
   function itemNodeId(item: ExtractedItem): string {
     const key = sha(projectId, item.sourcePath, String(item.startLine), item.type, item.title);
     nodeIds.set(nodeKey(item), key);
@@ -79,7 +78,11 @@ export async function buildKnowledge(projectId: string, root: string, parsedFile
     evidence.push(c.evidence);
   }
 
+  const importFlow = await extractImportFlow(projectId, root, components, parsedFiles, now);
+
   const edges: KnowledgeEdge[] = [];
+  edges.push(...importFlow.edges);
+  evidence.push(...importFlow.evidence);
 
   const byType = new Map<string, ExtractedItem[]>();
   for (const item of items) {
@@ -154,6 +157,108 @@ interface ComponentEntry {
   content: string;
   node: KnowledgeNode;
   evidence: Evidence;
+}
+
+const IMPORT_PATTERNS = [
+  /(?:import[^'"`\n]*from\s*|export[^'"`\n]*from\s*|require\s*\(\s*|import\s*\(\s*)["']([^"']+)["']/g,
+  /from\s+([.\w]+)\s+import/g,
+];
+
+const MAX_IMPORT_EDGES = 200;
+
+async function extractImportFlow(
+  projectId: string,
+  root: string,
+  components: ComponentEntry[],
+  parsedFiles: ParsedFileInfo[],
+  now: string
+): Promise<{ edges: KnowledgeEdge[]; evidence: Evidence[] }> {
+  const nameToId = new Map(components.map((c) => [c.name, c.id]));
+  const edges: KnowledgeEdge[] = [];
+  const evidence: Evidence[] = [];
+  if (nameToId.size === 0) return { edges, evidence };
+
+  const codeFiles = parsedFiles.filter((f) => isCodePath(f.relativePath)).slice(0, 400);
+  const byPair = new Map<string, { from: string; to: string; file: string; line: number; excerpt: string }>();
+
+  for (const f of codeFiles) {
+    if (byPair.size >= MAX_IMPORT_EDGES) break;
+    const fromTop = f.relativePath.includes("/") ? f.relativePath.split("/")[0] : null;
+    if (!fromTop || !nameToId.has(fromTop)) continue;
+    let content: string;
+    try {
+      content = await fsSync.promises.readFile(path.join(root, f.relativePath), "utf8");
+    } catch {
+      continue;
+    }
+    if (content.length > 256 * 1024) continue;
+    const lines = content.split(/\r?\n/);
+    for (let i = 0; i < lines.length && byPair.size < MAX_IMPORT_EDGES; i++) {
+      const line = lines[i];
+      for (const re of IMPORT_PATTERNS) {
+        re.lastIndex = 0;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(line)) !== null) {
+          const spec = m[1];
+          if (!spec) continue;
+          let top: string | null = null;
+          if (spec.startsWith(".")) {
+            const base = path.posix.dirname(f.relativePath);
+            top = path.posix.normalize(`${base}/${spec}`).split("/")[0];
+          } else {
+            let candidate = spec.split("/")[0];
+            if (candidate.startsWith("@")) {
+              const rest = spec.slice(candidate.length + 1);
+              const restTop = rest.split("/")[0];
+              if (restTop && nameToId.has(restTop)) {
+                top = restTop;
+              } else {
+                const unscoped = candidate.slice(1);
+                top = nameToId.has(unscoped) ? unscoped : null;
+              }
+            } else {
+              top = nameToId.has(candidate) ? candidate : null;
+            }
+          }
+          if (!top || top === fromTop || !nameToId.has(top)) continue;
+          const key = `${fromTop}>${top}`;
+          if (!byPair.has(key)) {
+            byPair.set(key, { from: fromTop, to: top, file: f.relativePath, line: i + 1, excerpt: line.trim().slice(0, 140) });
+          }
+        }
+      }
+    }
+  }
+
+  for (const pair of byPair.values()) {
+    const sourceId = nameToId.get(pair.from) as string;
+    const targetId = nameToId.get(pair.to) as string;
+    const evId = sha(projectId, "import", pair.file, String(pair.line), pair.from, pair.to);
+    edges.push({
+      id: sha(projectId, sourceId, targetId, "depends_on"),
+      projectId,
+      sourceNodeId: sourceId,
+      targetNodeId: targetId,
+      relation: "depends_on",
+      status: "candidate",
+      evidenceId: evId,
+      origin: "discovered",
+    });
+    evidence.push({
+      id: evId,
+      projectId,
+      nodeId: sourceId,
+      sourcePath: pair.file,
+      startLine: pair.line,
+      endLine: pair.line,
+      excerpt: pair.excerpt,
+      classification: "observed-convention",
+      observedAt: now,
+      confidence: "high",
+      contentHash: null,
+    });
+  }
+  return { edges, evidence };
 }
 
 const GENERATED_DIRS = new Set([

@@ -43,24 +43,54 @@ export function buildArchitectureHtml(
   const decisions = nodes.filter((n) => n.node.type === "decision").slice(0, 12);
   const procedures = nodes.filter((n) => n.node.type === "procedure" && n.node.status !== "rejected").slice(0, 10);
 
-  const generated = new Date().toISOString();
-  const commitLine = project.lastCommit ? esc(project.lastCommit.slice(0, 12)) : "not a git repository";
+  const renderedIds = new Set(components.map((c) => c.id));
+  const componentByName = new Map(components.map((c) => [c.name, c.id]));
+  const flowEdges = edges.filter(
+    (e) => e.relation === "depends_on" && renderedIds.has(e.sourceNodeId) && renderedIds.has(e.targetNodeId) && e.sourceNodeId !== e.targetNodeId
+  );
+
+  const layerOf = new Map<string, number>();
+  function computeLayer(id: string, seen: Set<string>): number {
+    if (layerOf.has(id)) return layerOf.get(id) as number;
+    if (seen.has(id)) return 0;
+    seen.add(id);
+    const outgoing = flowEdges.filter((e) => e.sourceNodeId === id);
+    let layer = 0;
+    for (const e of outgoing) {
+      layer = Math.max(layer, computeLayer(e.targetNodeId, seen) + 1);
+    }
+    seen.delete(id);
+    layerOf.set(id, layer);
+    return layer;
+  }
+  for (const c of components) computeLayer(c.id, new Set());
+  const maxLayer = Math.max(0, ...components.map((c) => layerOf.get(c.id) ?? 0));
 
   const boxW = 240;
   const boxH = 96;
-  const gapX = 40;
-  const gapY = 60;
-  const perRow = 3;
-  const rows = Math.max(1, Math.ceil(components.length / perRow));
-  const svgW = Math.max(720, perRow * (boxW + gapX) + gapX);
-  const svgH = rows * (boxH + gapY) + gapY;
+  const gapX = 70;
+  const gapY = 70;
+  const chipH = 40;
+  const topBand = chipH + 50;
+  const perLayer = new Map<number, string[]>();
+  for (const c of components) {
+    const l = layerOf.get(c.id) ?? 0;
+    perLayer.set(l, [...(perLayer.get(l) ?? []), c.id]);
+  }
+  const maxPerLayer = Math.max(1, ...[...perLayer.values()].map((v) => v.length));
+  const svgW = Math.max(760, (maxLayer + 1) * (boxW + gapX) + gapX);
+  const svgH = topBand + maxPerLayer * (boxH + gapY) + gapY;
 
+  const posById = new Map<string, { x: number; y: number }>();
   let boxes = "";
-  components.forEach((c, i) => {
-    const row = Math.floor(i / perRow);
-    const col = i % perRow;
-    const x = gapX + col * (boxW + gapX);
-    const y = gapY + row * (boxH + gapY);
+  for (const c of components) {
+    const l = layerOf.get(c.id) ?? 0;
+    const idx = (perLayer.get(l) ?? []).indexOf(c.id);
+    const colFromRight = (perLayer.get(l) ?? []).length - 1 - idx;
+    const x = gapX + (maxLayer - l) * (boxW + gapX);
+    const y = topBand + idx * (boxH + gapY);
+    posById.set(c.id, { x, y });
+    void colFromRight;
     boxes += `
   <g class="comp" data-id="${esc(c.id)}">
     <rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="10"/>
@@ -68,18 +98,74 @@ export function buildArchitectureHtml(
     <text x="${x + 14}" y="${y + 50}" class="comp-sub">${c.fileCount} file${c.fileCount === 1 ? "" : "s"}</text>
     <text x="${x + 14}" y="${y + 72}" class="comp-sub">${c.governedBy} governing rule${c.governedBy === 1 ? "" : "s"}</text>
   </g>`;
+  }
+
+  let arrows = "";
+  for (const e of flowEdges) {
+    const a = posById.get(e.sourceNodeId);
+    const b = posById.get(e.targetNodeId);
+    if (!a || !b) continue;
+    const x1 = a.x + boxW;
+    const y1 = a.y + boxH / 2;
+    const x2 = b.x;
+    const y2 = b.y + boxH / 2;
+    const mid = (x1 + x2) / 2;
+    arrows += `<path class="flow" d="M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}" marker-end="url(#arr)"/>`;
+  }
+
+  const governsArrowsSrc = approved
+    .map((n) => ({ node: n.node, targets: edges.filter((e) => e.relation === "governs" && e.sourceNodeId === n.node.id && renderedIds.has(e.targetNodeId)).map((e) => e.targetNodeId) }))
+    .filter((g) => g.targets.length > 0)
+    .slice(0, 6);
+  const chipW = 200;
+  const chipGap = 24;
+  let chips = "";
+  let govArrows = "";
+  governsArrowsSrc.forEach((g, i) => {
+    const x = gapX + i * (chipW + chipGap);
+    const y = 24;
+    const short = g.node.title.length > 30 ? g.node.title.slice(0, 28) + "…" : g.node.title;
+    chips += `
+  <g>
+    <rect x="${x}" y="${y}" width="${chipW}" height="${chipH}" rx="8" class="chip"/>
+    <text x="${x + 10}" y="${y + 25}" class="chip-text">${esc(short)}</text>
+  </g>`;
+    for (const t of g.targets) {
+      const b = posById.get(t);
+      if (!b) continue;
+      govArrows += `<path class="govflow" d="M ${x + chipW / 2} ${y + chipH} C ${x + chipW / 2} ${y + chipH + 26}, ${b.x + boxW / 2} ${b.y - 26}, ${b.x + boxW / 2} ${b.y}" marker-end="url(#arrG)"/>`;
+    }
   });
 
-  const svg = `<svg viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Component architecture">
+  const svg = `<svg viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Component architecture with dependency flow">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8b95a5"/></marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4fd1c5"/></marker>
+  </defs>
   <style>
     .comp rect { fill:#151a21; stroke:#313c4a; stroke-width:1.5; }
     .comp:hover rect { stroke:#4fd1c5; }
     .comp-name { fill:#e6e9ee; font:600 15px "Segoe UI",sans-serif; }
     .comp-sub { fill:#8b95a5; font:12px "Segoe UI",sans-serif; }
+    .flow { fill:none; stroke:#8b95a5; stroke-width:1.6; }
+    .govflow { fill:none; stroke:#4fd1c5; stroke-width:1.4; stroke-dasharray:6 5; opacity:0.85; }
+    .chip rect { fill:#12312d; stroke:#2c6e67; }
+    .chip-text { fill:#b8f5ee; font:12px "Segoe UI",sans-serif; }
     text { pointer-events:none; }
   </style>
+  ${chips}
+  ${govArrows}
   ${boxes}
+  ${arrows}
 </svg>`;
+
+  const flowNote =
+    flowEdges.length > 0
+      ? `${flowEdges.length} code-level dependency link${flowEdges.length === 1 ? "" : "s"} detected from import statements — solid arrows show real flow between components.`
+      : "No cross-component imports were detected in the scanned code, so the boxes have no dependency arrows yet.";
+
+  const generated = new Date().toISOString();
+  const commitLine = project.lastCommit ? esc(project.lastCommit.slice(0, 12)) : "not a git repository";
 
   const principleChips = approved.length
     ? approved
@@ -150,9 +236,9 @@ footer{color:var(--dim);font-size:12px;padding:8px 20px 24px}
 </header>
 <main>
   <div class="panel">
-    <h2>Components (top ${components.length} by tracked files)</h2>
+    <h2>Architecture flow</h2>
     ${svg}
-    <p class="dim">Components are directories with recognized source code. Governing rules are approved principles whose links target the component. The repository's own files remain authoritative.</p>
+    <p class="dim">${esc(flowNote)} Dashed teal arrows show approved principles governing a component. Layout is layered by dependency direction: components at the left are the foundation; arrows point from a component to what it relies on.</p>
   </div>
   <div class="panel">
     <h2>Approved principles and conventions</h2>
